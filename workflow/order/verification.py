@@ -279,5 +279,5 @@ class OrderVerification:
             raise
         except Exception as e:
             # Log the error and re-raise with more context
-            print(f"Error generating verification email: {str(e)}")
+            logger.error(f"Error generating verification email: {str(e)}", exc_info=True)
             raise Exception(f"Failed to generate verification email: {str(e)}")

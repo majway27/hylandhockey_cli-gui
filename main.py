@@ -40,6 +40,9 @@ class HockeyJerseyApp:
         self.config = ConfigManager(test=True)
         self.order_verification = OrderVerification(self.config)
         
+        # Initialize log viewer in quiet mode (no STDOUT output)
+        self.log_viewer = LogViewer(quiet=True)
+        
         # Setup UI
         logger.debug("Setting up user interface")
         self.setup_ui()

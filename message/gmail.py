@@ -3,6 +3,7 @@ Gmail functionality for sending emails.
 """
 
 import base64
+import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from googleapiclient.discovery import build
@@ -51,10 +52,12 @@ def send_gmail(sender_email, to_email, subject, message_text, config_manager: Co
             userId='me',
             body={'raw': raw_message}
         ).execute()
-        print(f'Message Id: {message["id"]}')
+        # Log message ID instead of printing
+        logging.getLogger(__name__).info(f'Message sent successfully. Message Id: {message["id"]}')
         return message
     except Exception as e:
-        print(f'An error occurred: {e}')
+        # Log error instead of printing
+        logging.getLogger(__name__).error(f'Error sending message: {e}')
         return None
 
 def create_gmail_draft(sender_email, to_email, subject, message_text, config_manager: ConfigManager = None):
@@ -97,10 +100,12 @@ def create_gmail_draft(sender_email, to_email, subject, message_text, config_man
             userId='me',
             body={'message': {'raw': raw_message}}
         ).execute()
-        print(f'Draft Id: {draft["id"]}')
+        # Log draft ID instead of printing
+        logging.getLogger(__name__).info(f'Draft created successfully. Draft Id: {draft["id"]}')
         return draft
     except Exception as e:
-        print(f'An error occurred: {e}')
+        # Log error instead of printing
+        logging.getLogger(__name__).error(f'Error creating draft: {e}')
         return None
 
 def send_all_drafts(config_manager: ConfigManager = None):
@@ -124,7 +129,8 @@ def send_all_drafts(config_manager: ConfigManager = None):
         drafts = service.users().drafts().list(userId='me').execute()
         
         if not drafts.get('drafts'):
-            print('No drafts found')
+            # Log instead of printing
+            logging.getLogger(__name__).info('No drafts found')
             return results
             
         for draft in drafts['drafts']:
@@ -217,5 +223,6 @@ def send_all_drafts(config_manager: ConfigManager = None):
         return results
         
     except Exception as e:
-        print(f'An error occurred while processing drafts: {e}')
+        # Log error instead of printing
+        logging.getLogger(__name__).error(f'Error processing drafts: {e}')
         return results 

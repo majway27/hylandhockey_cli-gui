@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 import pandas as pd
+import logging
 from record.sheets import read_google_sheet_by_id, update_cell
 from config.config_manager import ConfigManager
 
@@ -194,7 +195,8 @@ class JerseyWorksheetJerseyOrder:
             return orders
             
         except Exception as error:
-            print(f"An error occurred: {error}")
+            # Log error instead of printing
+            logging.getLogger(__name__).error(f"Error loading jersey orders: {error}")
             return []
 
     @classmethod
@@ -255,14 +257,16 @@ class JerseyWorksheetJerseyOrder:
             # Update specified fields
             for field in fields:
                 if field not in self.COLUMN_MAPPINGS:
-                    print(f"Warning: Field '{field}' not found in COLUMN_MAPPINGS")
+                    # Log warning instead of printing
+                    logging.getLogger(__name__).warning(f"Field '{field}' not found in COLUMN_MAPPINGS")
                     continue
                     
                 cell_value = self._format_value_for_sheet(getattr(self, field))
                 col_index = list(self.COLUMN_MAPPINGS.keys()).index(field)
                 col_letter = self._column_to_letter(col_index)
                 cell_ref = f"{col_letter}{row_index}"
-                print(f"Updating cell {cell_ref} with value {cell_value}")
+                # Log update instead of printing
+                logging.getLogger(__name__).debug(f"Updating cell {cell_ref} with value {cell_value}")
                 
                 if not update_cell(
                     self.config_manager.jersey_spreadsheet_id,
@@ -276,7 +280,8 @@ class JerseyWorksheetJerseyOrder:
             return True
             
         except Exception as error:
-            print(f"An error occurred: {error}")
+            # Log error instead of printing
+            logging.getLogger(__name__).error(f"Error saving jersey order: {error}")
             return False
 
     @staticmethod

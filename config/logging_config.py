@@ -51,11 +51,8 @@ class LoggingConfig:
         # Clear any existing handlers
         root_logger.handlers.clear()
         
-        # Console handler (INFO level and above)
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(simple_formatter)
-        root_logger.addHandler(console_handler)
+        # Note: Console handler removed to prevent STDOUT output
+        # All logging now goes to log files only
         
         # File handler for all logs (DEBUG level and above)
         all_logs_file = self.log_dir / f"{self.app_name}_all.log"
@@ -111,7 +108,7 @@ class LoggingConfig:
     
     def set_level(self, level):
         """
-        Set the logging level for console output.
+        Set the logging level for file handlers.
         
         Args:
             level (str): Logging level ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
@@ -125,12 +122,11 @@ class LoggingConfig:
         }
         
         if level.upper() in level_map:
-            # Update console handler level
+            # Update file handler levels
             for handler in logging.getLogger().handlers:
-                if isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler):
+                if isinstance(handler, logging.FileHandler):
                     handler.setLevel(level_map[level.upper()])
-                    logging.info(f"Console logging level set to {level.upper()}")
-                    break
+            logging.info(f"File logging level set to {level.upper()}")
         else:
             logging.warning(f"Invalid logging level: {level}. Using INFO level.")
     

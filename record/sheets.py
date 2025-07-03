@@ -4,6 +4,7 @@ Google Sheets operations for the record module.
 
 import pandas as pd
 import gspread
+import logging
 
 from auth.google_auth import get_credentials
 from config.config_manager import ConfigManager
@@ -112,5 +113,6 @@ def update_cell(spreadsheet_id, worksheet_gid, cell_reference, value, config_man
         
         return True
     except Exception as e:
-        print(f"Error updating cell: {str(e)}")
+        # Log error instead of printing
+        logging.getLogger(__name__).error(f"Error updating cell: {str(e)}")
         return False

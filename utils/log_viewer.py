@@ -16,16 +16,19 @@ from typing import List, Optional
 class LogViewer:
     """Simple log file viewer with filtering capabilities."""
     
-    def __init__(self, log_dir: str = "logs"):
+    def __init__(self, log_dir: str = "logs", quiet: bool = False):
         """
         Initialize the log viewer.
         
         Args:
             log_dir: Directory containing log files
+            quiet: If True, suppress all output (for use in GUI)
         """
         self.log_dir = Path(log_dir)
+        self.quiet = quiet
         if not self.log_dir.exists():
-            print(f"Log directory not found: {self.log_dir}")
+            if not self.quiet:
+                print(f"Log directory not found: {self.log_dir}")
             sys.exit(1)
     
     def list_log_files(self) -> List[Path]:
@@ -38,13 +41,15 @@ class LogViewer:
         log_files = self.list_log_files()
         
         if not log_files:
-            print("No log files found.")
+            if not self.quiet:
+                print("No log files found.")
             return
         
-        print(f"\nAvailable log files in {self.log_dir}:")
-        print("-" * 80)
-        print(f"{'Filename':<30} {'Size':<10} {'Modified':<20} {'Lines':<8}")
-        print("-" * 80)
+        if not self.quiet:
+            print(f"\nAvailable log files in {self.log_dir}:")
+            print("-" * 80)
+            print(f"{'Filename':<30} {'Size':<10} {'Modified':<20} {'Lines':<8}")
+            print("-" * 80)
         
         for log_file in log_files:
             stat = log_file.stat()
@@ -66,7 +71,8 @@ class LogViewer:
             else:
                 size_str = f"{size // (1024 * 1024)}MB"
             
-            print(f"{log_file.name:<30} {size_str:<10} {modified:<20} {line_count:<8}")
+            if not self.quiet:
+                print(f"{log_file.name:<30} {size_str:<10} {modified:<20} {line_count:<8}")
     
     def view_log(self, filename: str, lines: int = 50, level: Optional[str] = None, 
                  search: Optional[str] = None, since: Optional[str] = None):
@@ -83,7 +89,8 @@ class LogViewer:
         log_file = self.log_dir / filename
         
         if not log_file.exists():
-            print(f"Log file not found: {log_file}")
+            if not self.quiet:
+                print(f"Log file not found: {log_file}")
             return
         
         # Parse since time
@@ -95,13 +102,15 @@ class LogViewer:
                 else:  # YYYY-MM-DD HH:MM:SS
                     since_time = datetime.strptime(since, "%Y-%m-%d %H:%M:%S")
             except ValueError:
-                print(f"Invalid date format: {since}. Use YYYY-MM-DD or YYYY-MM-DD HH:MM:SS")
+                if not self.quiet:
+                    print(f"Invalid date format: {since}. Use YYYY-MM-DD or YYYY-MM-DD HH:MM:SS")
                 return
         
-        print(f"\nViewing log file: {log_file}")
-        print(f"Filters: lines={lines if lines > 0 else 'all'}, level={level or 'all'}, "
-              f"search='{search or 'none'}', since={since or 'none'}")
-        print("-" * 80)
+        if not self.quiet:
+            print(f"\nViewing log file: {log_file}")
+            print(f"Filters: lines={lines if lines > 0 else 'all'}, level={level or 'all'}, "
+                  f"search='{search or 'none'}', since={since or 'none'}")
+            print("-" * 80)
         
         try:
             with open(log_file, 'r', encoding='utf-8') as f:
@@ -138,15 +147,19 @@ class LogViewer:
                 
                 # Display results
                 if not filtered_lines:
-                    print("No log entries match the specified filters.")
+                    if not self.quiet:
+                        print("No log entries match the specified filters.")
                 else:
                     for line in filtered_lines:
-                        print(line.rstrip())
+                        if not self.quiet:
+                            print(line.rstrip())
                     
-                    print(f"\n--- End of log (showing {len(filtered_lines)} of {len(all_lines)} lines) ---")
+                    if not self.quiet:
+                        print(f"\n--- End of log (showing {len(filtered_lines)} of {len(all_lines)} lines) ---")
                     
         except Exception as e:
-            print(f"Error reading log file: {e}")
+            if not self.quiet:
+                print(f"Error reading log file: {e}")
     
     def tail_log(self, filename: str, lines: int = 20, follow: bool = False):
         """
@@ -160,11 +173,13 @@ class LogViewer:
         log_file = self.log_dir / filename
         
         if not log_file.exists():
-            print(f"Log file not found: {log_file}")
+            if not self.quiet:
+                print(f"Log file not found: {log_file}")
             return
         
-        print(f"\nTailing log file: {log_file} (last {lines} lines)")
-        print("-" * 80)
+        if not self.quiet:
+            print(f"\nTailing log file: {log_file} (last {lines} lines)")
+            print("-" * 80)
         
         try:
             with open(log_file, 'r', encoding='utf-8') as f:
@@ -172,13 +187,15 @@ class LogViewer:
                 last_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
                 
                 for line in last_lines:
-                    print(line.rstrip())
+                    if not self.quiet:
+                        print(line.rstrip())
                 
-                if follow:
+                if follow and not self.quiet:
                     print("\nFollow mode not yet implemented. Use 'tail -f' command instead.")
                     
         except Exception as e:
-            print(f"Error reading log file: {e}")
+            if not self.quiet:
+                print(f"Error reading log file: {e}")
 
 
 def main():
