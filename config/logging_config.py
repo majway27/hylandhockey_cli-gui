@@ -13,6 +13,13 @@ from datetime import datetime
 from pathlib import Path
 
 
+class ErrorLevelFilter(logging.Filter):
+    """Filter to only allow ERROR and CRITICAL level messages."""
+    
+    def filter(self, record):
+        return record.levelno >= logging.ERROR
+
+
 class LoggingConfig:
     """Centralized logging configuration for the application."""
     
@@ -66,7 +73,7 @@ class LoggingConfig:
         file_handler.setFormatter(detailed_formatter)
         root_logger.addHandler(file_handler)
         
-        # Error log file (ERROR level and above)
+        # Error log file (ERROR level and above only)
         error_log_file = self.log_dir / f"{self.app_name}_errors.log"
         error_handler = logging.handlers.RotatingFileHandler(
             error_log_file,
@@ -76,6 +83,8 @@ class LoggingConfig:
         )
         error_handler.setLevel(logging.ERROR)
         error_handler.setFormatter(detailed_formatter)
+        # Add filter to ensure only ERROR and CRITICAL messages are logged
+        error_handler.addFilter(ErrorLevelFilter())
         root_logger.addHandler(error_handler)
         
         # Daily log file

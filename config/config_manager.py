@@ -87,35 +87,15 @@ class ConfigManager:
     
     # Record
     @property
-    def demo_spreadsheet_name(self) -> str:
-        """Get demo spreadsheet name."""
-        return self._get_value('demo_spreadsheet_name')
-    
-    @property
     def jersey_spreadsheet_name(self) -> str:
         """Get jersey spreadsheet name."""
         return self._get_value('jersey_spreadsheet_name')
-    
-    @property
-    def demo_spreadsheet_id(self) -> str:
-        """Get demo spreadsheet ID."""
-        return self._get_value('demo_spreadsheet_id')
     
     @property
     def jersey_spreadsheet_id(self) -> str:
         """Get jersey spreadsheet ID."""
         return self._get_value('jersey_spreadsheet_id')
 
-    @property
-    def demo_worksheet_form_responses_gid(self) -> str:
-        """Get demo worksheet form responses GID."""
-        return self._get_value('demo_worksheet_form_responses_gid')
-    
-    @property
-    def demo_worksheet_jersey_orders_gid(self) -> str:
-        """Get demo worksheet jersey orders GID."""
-        return self._get_value('demo_worksheet_jersey_orders_gid')
-    
     @property
     def jersey_worksheet_jersey_orders_gid(self) -> str:
         """Get jersey worksheet jersey orders GID."""
@@ -127,16 +107,6 @@ class ConfigManager:
         return self._get_value('jersey_worksheet_jersey_orders_name')
     
     # Message
-    @property
-    def demo_sender_email(self) -> str:
-        """Get demo sender email."""
-        return self._get_value('demo_sender_email')
-    
-    @property
-    def demo_default_to_email(self) -> str:
-        """Get demo default recipient email."""
-        return self._get_value('demo_default_to_email')
-    
     @property
     def jersey_sender_email(self) -> str:
         """Get jersey sender email."""
