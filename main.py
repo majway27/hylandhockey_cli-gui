@@ -11,11 +11,21 @@ import tkinter as tk
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from ttkbootstrap.scrolled import ScrolledFrame
+import argparse
+import sys
 
 from config.config_manager import ConfigManager
 from config.logging_config import setup_logging, get_logger
 from workflow.order.verification import OrderVerification, OrderDetails
 from utils.log_viewer import LogViewer
+from auth.google_auth import (
+    get_credentials_with_retry, 
+    check_credentials_status, 
+    clear_credentials,
+    AuthenticationError,
+    TokenExpiredError,
+    CredentialsNotFoundError
+)
 
 # Setup logging
 logger = get_logger(__name__)
@@ -24,20 +34,33 @@ logger = get_logger(__name__)
 class HockeyJerseyApp:
     """Main application class for the Hockey Jersey Order Management System."""
     
-    def __init__(self):
-        """Initialize the main application window."""
-        logger.info("Initializing Hockey Jersey Order Management application")
+    def __init__(self, test_mode: bool = False):
+        """
+        Initialize the main application window.
         
+        Args:
+            test_mode: If True, use test configuration and credentials
+        """
+        logger.info(f"Initializing Hockey Jersey Order Management application (test_mode: {test_mode})")
+        
+        # Set title based on mode
+        title = "Hyland Hockey Jersey Order Management"
+        if test_mode:
+            title += " (TEST MODE)"
+        else:
+            title += " (PRODUCTION)"
+            
         self.root = ttk.Window(
-            title="Hyland Hockey Jersey Order Management",
+            title=title,
             themename="cosmo",
             size=(1200, 800),
             resizable=(True, True)
         )
         
         # Initialize configuration
-        logger.debug("Initializing configuration manager")
-        self.config = ConfigManager(test=True)
+        logger.debug(f"Initializing configuration manager (test_mode: {test_mode})")
+        self.config = ConfigManager(test=test_mode)
+        
         self.order_verification = OrderVerification(self.config)
         
         # Initialize log viewer in quiet mode (no STDOUT output)
@@ -46,6 +69,10 @@ class HockeyJerseyApp:
         # Setup UI
         logger.debug("Setting up user interface")
         self.setup_ui()
+        
+        # Check authentication status (after UI is set up)
+        self.check_auth_status()
+        
         logger.info("Application initialization completed")
         
     def setup_ui(self):
@@ -92,12 +119,22 @@ class HockeyJerseyApp:
         self.notebook.add(dashboard_frame, text="Dashboard")
         
         # Dashboard content
+        mode_text = "TEST MODE" if self.config.is_test_mode else "PRODUCTION MODE"
         welcome_label = ttk.Label(
             dashboard_frame,
-            text="Welcome to the Jersey Order Management System",
+            text=f"Welcome to the Jersey Order Management System",
             font=("Helvetica", 12)
         )
-        welcome_label.pack(pady=20)
+        welcome_label.pack(pady=(20, 5))
+        
+        # Store reference to mode label for updating
+        self.mode_label = ttk.Label(
+            dashboard_frame,
+            text=f"Running in: {mode_text}",
+            font=("Helvetica", 10, "bold"),
+            foreground="red" if self.config.is_test_mode else "green"
+        )
+        self.mode_label.pack(pady=(0, 20))
         
         # Quick stats frame
         stats_frame = ttk.LabelFrame(dashboard_frame, text="Quick Statistics", padding=10)
@@ -113,14 +150,53 @@ class HockeyJerseyApp:
         ttk.Label(stats_frame, text="Total Orders:").grid(row=1, column=0, sticky=W, padx=(0, 10))
         ttk.Label(stats_frame, textvariable=self.total_orders_var).grid(row=1, column=1, sticky=W)
         
+        # Action buttons frame
+        actions_frame = ttk.Frame(dashboard_frame)
+        actions_frame.pack(pady=20)
+        
         # Refresh button
         refresh_btn = ttk.Button(
-            dashboard_frame,
+            actions_frame,
             text="Refresh Dashboard",
             command=self.refresh_dashboard,
             style="primary.TButton"
         )
-        refresh_btn.pack(pady=20)
+        refresh_btn.pack(side=LEFT, padx=(0, 10))
+        
+        # Authentication buttons
+        auth_frame = ttk.LabelFrame(dashboard_frame, text="Authentication", padding=10)
+        auth_frame.pack(fill=X, pady=10)
+        
+        auth_buttons_frame = ttk.Frame(auth_frame)
+        auth_buttons_frame.pack()
+        
+        ttk.Button(
+            auth_buttons_frame,
+            text="Check Auth Status",
+            command=self.check_auth_status,
+            style="info.TButton"
+        ).pack(side=LEFT, padx=(0, 10))
+        
+        ttk.Button(
+            auth_buttons_frame,
+            text="Authenticate",
+            command=self.authenticate_user,
+            style="success.TButton"
+        ).pack(side=LEFT, padx=(0, 10))
+        
+        ttk.Button(
+            auth_buttons_frame,
+            text="Clear Tokens",
+            command=self.clear_auth_tokens,
+            style="danger.TButton"
+        ).pack(side=LEFT, padx=(0, 10))
+        
+        ttk.Button(
+            auth_buttons_frame,
+            text="Test Connection",
+            command=self.test_connection,
+            style="warning.TButton"
+        ).pack(side=LEFT)
         
         # Initial load
         self.refresh_dashboard()
@@ -271,25 +347,86 @@ class HockeyJerseyApp:
         config_frame = ttk.Frame(self.notebook, padding=10)
         self.notebook.add(config_frame, text="Configuration")
         
+        # Environment Mode Section
+        mode_frame = ttk.LabelFrame(config_frame, text="Environment Mode", padding=10)
+        mode_frame.pack(fill=X, pady=(0, 20))
+        
+        # Mode selection
+        mode_selection_frame = ttk.Frame(mode_frame)
+        mode_selection_frame.pack(fill=X, pady=(0, 10))
+        
+        ttk.Label(mode_selection_frame, text="Current Mode:").pack(side=LEFT)
+        
+        # Mode variable and radio buttons
+        self.mode_var = tk.StringVar(value="test" if self.config.is_test_mode else "production")
+        
+        test_radio = ttk.Radiobutton(
+            mode_selection_frame,
+            text="Test Mode",
+            variable=self.mode_var,
+            value="test",
+            command=self.on_mode_change
+        )
+        test_radio.pack(side=LEFT, padx=(10, 20))
+        
+        prod_radio = ttk.Radiobutton(
+            mode_selection_frame,
+            text="Production Mode",
+            variable=self.mode_var,
+            value="production",
+            command=self.on_mode_change
+        )
+        prod_radio.pack(side=LEFT)
+        
+        # Mode description
+        self.mode_description_var = tk.StringVar()
+        self.update_mode_description()
+        mode_desc_label = ttk.Label(
+            mode_frame,
+            textvariable=self.mode_description_var,
+            font=("Helvetica", 9),
+            foreground="gray"
+        )
+        mode_desc_label.pack(anchor=W)
+        
+        # Mode warning
+        if not self.config.is_test_mode:
+            warning_label = ttk.Label(
+                mode_frame,
+                text="⚠️  WARNING: You are in PRODUCTION mode. Changes will affect live data.",
+                font=("Helvetica", 9, "bold"),
+                foreground="red"
+            )
+            warning_label.pack(anchor=W, pady=(5, 0))
+        
         # Config info
         info_frame = ttk.LabelFrame(config_frame, text="Configuration Information", padding=10)
         info_frame.pack(fill=X, pady=(0, 20))
         
-        # Test mode indicator
-        test_mode = "Test Mode" if self.config.is_test_mode else "Production Mode"
-        mode_label = ttk.Label(
+        # Current configuration display
+        self.config_info_var = tk.StringVar()
+        self.update_config_info()
+        config_info_label = ttk.Label(
             info_frame,
-            text=f"Mode: {test_mode}",
-            font=("Helvetica", 10, "bold")
+            textvariable=self.config_info_var,
+            font=("Consolas", 9),
+            justify=tk.LEFT
         )
-        mode_label.pack(anchor=W)
+        config_info_label.pack(anchor=W)
         
         # Spreadsheet info
         spreadsheet_frame = ttk.LabelFrame(config_frame, text="Spreadsheet Configuration", padding=10)
         spreadsheet_frame.pack(fill=X, pady=(0, 20))
         
-        ttk.Label(spreadsheet_frame, text=f"Jersey Spreadsheet: {self.config.jersey_spreadsheet_name}").pack(anchor=W)
-        ttk.Label(spreadsheet_frame, text=f"Sender Email: {self.config.jersey_sender_email}").pack(anchor=W)
+        self.spreadsheet_info_var = tk.StringVar()
+        self.update_spreadsheet_info()
+        spreadsheet_info_label = ttk.Label(
+            spreadsheet_frame,
+            textvariable=self.spreadsheet_info_var,
+            font=("Consolas", 9),
+            justify=tk.LEFT
+        )
+        spreadsheet_info_label.pack(anchor=W)
         
         # Actions
         actions_frame = ttk.LabelFrame(config_frame, text="Actions", padding=10)
@@ -297,10 +434,24 @@ class HockeyJerseyApp:
         
         ttk.Button(
             actions_frame,
+            text="Refresh Configuration",
+            command=self.refresh_config_tab,
+            style="info.TButton"
+        ).pack(side=LEFT, padx=(0, 10))
+        
+        ttk.Button(
+            actions_frame,
             text="Test Connection",
             command=self.test_connection,
             style="info.TButton"
         ).pack(side=LEFT, padx=(0, 10))
+        
+        ttk.Button(
+            actions_frame,
+            text="Clear Auth Tokens",
+            command=self.clear_auth_tokens,
+            style="danger.TButton"
+        ).pack(side=LEFT)
         
     def create_logs_tab(self):
         """Create the logs viewing tab."""
@@ -427,12 +578,23 @@ class HockeyJerseyApp:
         # Load initial log content
         self.refresh_logs()
         
+    def update_dashboard_mode_label(self):
+        """Update the dashboard mode label to reflect current mode."""
+        mode_text = "TEST MODE" if self.config.is_test_mode else "PRODUCTION MODE"
+        self.mode_label.config(
+            text=f"Running in: {mode_text}",
+            foreground="red" if self.config.is_test_mode else "green"
+        )
+    
     def refresh_dashboard(self):
         """Refresh the dashboard statistics."""
         logger.info("Refreshing dashboard")
         try:
             self.status_var.set("Loading dashboard...")
             self.root.update()
+            
+            # Update mode label
+            self.update_dashboard_mode_label()
             
             # Get pending orders
             pending_orders = self.order_verification.get_pending_orders()
@@ -445,10 +607,24 @@ class HockeyJerseyApp:
             self.status_var.set("Dashboard refreshed successfully")
             logger.info(f"Dashboard refreshed successfully: {len(pending_orders)} pending orders")
             
+        except TokenExpiredError as e:
+            error_msg = f"Authentication expired: {str(e)}"
+            logger.error(error_msg)
+            self.status_var.set(error_msg)
+            self.pending_orders_var.set("Auth Error")
+            self.total_orders_var.set("Auth Error")
+        except AuthenticationError as e:
+            error_msg = f"Authentication error: {str(e)}"
+            logger.error(error_msg)
+            self.status_var.set(error_msg)
+            self.pending_orders_var.set("Auth Error")
+            self.total_orders_var.set("Auth Error")
         except Exception as e:
             error_msg = f"Error refreshing dashboard: {str(e)}"
             logger.error(error_msg, exc_info=True)
             self.status_var.set(error_msg)
+            self.pending_orders_var.set("Error")
+            self.total_orders_var.set("Error")
             
     def refresh_orders(self):
         """Refresh the orders table."""
@@ -482,6 +658,14 @@ class HockeyJerseyApp:
             self.status_var.set(f"Loaded {len(pending_orders)} pending orders")
             logger.info(f"Orders table refreshed successfully: {len(pending_orders)} orders loaded")
             
+        except TokenExpiredError as e:
+            error_msg = f"Authentication expired: {str(e)}"
+            logger.error(error_msg)
+            self.status_var.set(error_msg)
+        except AuthenticationError as e:
+            error_msg = f"Authentication error: {str(e)}"
+            logger.error(error_msg)
+            self.status_var.set(error_msg)
         except Exception as e:
             error_msg = f"Error loading orders: {str(e)}"
             logger.error(error_msg, exc_info=True)
@@ -503,6 +687,14 @@ class HockeyJerseyApp:
                 self.status_var.set("No pending orders found")
                 logger.info("No pending orders found")
                 
+        except TokenExpiredError as e:
+            error_msg = f"Authentication expired: {str(e)}"
+            logger.error(error_msg)
+            self.status_var.set(error_msg)
+        except AuthenticationError as e:
+            error_msg = f"Authentication error: {str(e)}"
+            logger.error(error_msg)
+            self.status_var.set(error_msg)
         except Exception as e:
             error_msg = f"Error getting next order: {str(e)}"
             logger.error(error_msg, exc_info=True)
@@ -574,6 +766,211 @@ class HockeyJerseyApp:
         self.email_text.delete(1.0, tk.END)
         self.status_var.set("Email form cleared")
         
+    def check_auth_status(self):
+        """Check authentication status and update UI accordingly."""
+        try:
+            is_valid, status_message = check_credentials_status(self.config)
+            if not is_valid:
+                logger.warning(f"Authentication issue detected: {status_message}")
+                self.status_var.set(f"Auth Issue: {status_message}")
+            else:
+                logger.info("Authentication status: Valid")
+                self.status_var.set("Ready")
+        except Exception as e:
+            logger.error(f"Error checking authentication status: {e}")
+            self.status_var.set(f"Auth Error: {str(e)}")
+    
+    def authenticate_user(self):
+        """Authenticate user with Google OAuth."""
+        try:
+            self.status_var.set("Authenticating with Google...")
+            self.root.update()
+            
+            # This will trigger the OAuth flow
+            get_credentials_with_retry(self.config)
+            
+            self.status_var.set("Authentication successful!")
+            logger.info("User authenticated successfully")
+            
+            # Refresh the dashboard to show data
+            self.refresh_dashboard()
+            
+        except TokenExpiredError as e:
+            error_msg = f"Authentication failed: {str(e)}"
+            logger.error(error_msg)
+            self.status_var.set(error_msg)
+        except CredentialsNotFoundError as e:
+            error_msg = f"Credentials not found: {str(e)}"
+            logger.error(error_msg)
+            self.status_var.set(error_msg)
+        except AuthenticationError as e:
+            error_msg = f"Authentication error: {str(e)}"
+            logger.error(error_msg)
+            self.status_var.set(error_msg)
+        except Exception as e:
+            error_msg = f"Unexpected authentication error: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            self.status_var.set(error_msg)
+    
+    def clear_auth_tokens(self):
+        """Clear stored authentication tokens."""
+        try:
+            self.status_var.set("Clearing authentication tokens...")
+            self.root.update()
+            
+            success = clear_credentials(self.config)
+            if success:
+                self.status_var.set("Authentication tokens cleared. Please re-authenticate.")
+                logger.info("Authentication tokens cleared successfully")
+            else:
+                self.status_var.set("Failed to clear authentication tokens.")
+                logger.error("Failed to clear authentication tokens")
+                
+        except Exception as e:
+            error_msg = f"Error clearing tokens: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            self.status_var.set(error_msg)
+    
+    def on_mode_change(self):
+        """Handle mode change from radio buttons."""
+        new_mode = self.mode_var.get() == "test"
+        if new_mode != self.config.is_test_mode:
+            logger.info(f"User requested mode change to {'test' if new_mode else 'production'}")
+            
+            # Show confirmation dialog
+            from tkinter import messagebox
+            mode_text = "TEST" if new_mode else "PRODUCTION"
+            result = messagebox.askyesno(
+                "Confirm Mode Change",
+                f"Are you sure you want to switch to {mode_text} mode?\n\n"
+                f"This will:\n"
+                f"• Use {'test' if new_mode else 'production'} credentials\n"
+                f"• Use {'test' if new_mode else 'production'} configuration\n"
+                f"• Require re-authentication\n\n"
+                f"Continue?"
+            )
+            
+            if result:
+                self.switch_mode(new_mode)
+            else:
+                # Revert the radio button selection
+                self.mode_var.set("test" if self.config.is_test_mode else "production")
+    
+    def switch_mode(self, test_mode: bool):
+        """Switch between test and production modes."""
+        try:
+            logger.info(f"Switching to {'test' if test_mode else 'production'} mode")
+            self.status_var.set(f"Switching to {'test' if test_mode else 'production'} mode...")
+            self.root.update()
+            
+            # Update the configuration
+            self.config.set_test_mode(test_mode)
+            
+            # Update the application title
+            title = "Hyland Hockey Jersey Order Management"
+            if test_mode:
+                title += " (TEST MODE)"
+            else:
+                title += " (PRODUCTION)"
+            self.root.title(title)
+            
+            # Check if credentials for the new mode are valid before clearing
+            try:
+                is_valid, status_message = check_credentials_status(self.config)
+                if is_valid:
+                    logger.info(f"Credentials for {'test' if test_mode else 'production'} mode are valid, preserving them")
+                    # Don't clear valid credentials
+                    credentials_cleared = False
+                else:
+                    logger.info(f"Credentials for {'test' if test_mode else 'production'} mode are invalid: {status_message}")
+                    # Clear invalid credentials
+                    clear_credentials(self.config)
+                    credentials_cleared = True
+            except Exception as e:
+                logger.warning(f"Error checking credentials status: {e}, clearing credentials as precaution")
+                clear_credentials(self.config)
+                credentials_cleared = True
+            
+            # Update configuration tab
+            self.update_mode_description()
+            self.update_config_info()
+            self.update_spreadsheet_info()
+            
+            # Update dashboard mode indicator
+            self.refresh_dashboard()
+            
+            self.status_var.set(f"Switched to {'test' if test_mode else 'production'} mode successfully")
+            
+            # Show success message
+            from tkinter import messagebox
+            if credentials_cleared:
+                messagebox.showinfo(
+                    "Mode Changed",
+                    f"Successfully switched to {'TEST' if test_mode else 'PRODUCTION'} mode.\n\n"
+                    f"Please re-authenticate using the Dashboard tab."
+                )
+            else:
+                messagebox.showinfo(
+                    "Mode Changed",
+                    f"Successfully switched to {'TEST' if test_mode else 'PRODUCTION'} mode.\n\n"
+                    f"Your existing authentication is still valid."
+                )
+            
+        except Exception as e:
+            error_msg = f"Failed to switch modes: {e}"
+            logger.error(error_msg)
+            self.status_var.set("Mode switch failed")
+            
+            # Show error message
+            from tkinter import messagebox
+            messagebox.showerror("Mode Switch Failed", error_msg)
+            
+            # Revert the radio button selection
+            self.mode_var.set("test" if self.config.is_test_mode else "production")
+    
+    def update_mode_description(self):
+        """Update the mode description text."""
+        if self.config.is_test_mode:
+            self.mode_description_var.set(
+                "Test Mode: Uses test credentials and configuration. Safe for development and testing."
+            )
+        else:
+            self.mode_description_var.set(
+                "Production Mode: Uses production credentials and configuration. Changes affect live data."
+            )
+    
+    def update_config_info(self):
+        """Update the configuration information display."""
+        info = f"Mode: {'TEST' if self.config.is_test_mode else 'PRODUCTION'}\n"
+        info += f"Credentials File: credentials{'test' if self.config.is_test_mode else ''}.json\n"
+        info += f"Token File: token{'test' if self.config.is_test_mode else ''}.pickle\n"
+        info += f"Config File: config.yaml\n"
+        info += f"Preferences File: preferences.yaml"
+        
+        self.config_info_var.set(info)
+    
+    def update_spreadsheet_info(self):
+        """Update the spreadsheet information display."""
+        try:
+            info = f"Spreadsheet Name: {self.config.jersey_spreadsheet_name}\n"
+            info += f"Spreadsheet ID: {self.config.jersey_spreadsheet_id}\n"
+            info += f"Worksheet Name: {self.config.jersey_worksheet_jersey_orders_name}\n"
+            info += f"Worksheet GID: {self.config.jersey_worksheet_jersey_orders_gid}\n"
+            info += f"Sender Email: {self.config.jersey_sender_email}\n"
+            info += f"Default To Email: {self.config.jersey_default_to_email}"
+        except Exception as e:
+            info = f"Error loading configuration: {e}"
+        
+        self.spreadsheet_info_var.set(info)
+    
+    def refresh_config_tab(self):
+        """Refresh the configuration tab display."""
+        logger.info("Refreshing configuration tab")
+        self.update_mode_description()
+        self.update_config_info()
+        self.update_spreadsheet_info()
+        self.status_var.set("Configuration refreshed")
+    
     def test_connection(self):
         """Test the connection to Google services."""
         logger.info("Testing Google services connection")
@@ -587,6 +984,14 @@ class HockeyJerseyApp:
             self.status_var.set(f"Connection test successful - {len(orders)} orders found")
             logger.info(f"Connection test successful - {len(orders)} orders found")
             
+        except TokenExpiredError as e:
+            error_msg = f"Authentication expired: {str(e)}"
+            logger.error(error_msg)
+            self.status_var.set(error_msg)
+        except AuthenticationError as e:
+            error_msg = f"Authentication error: {str(e)}"
+            logger.error(error_msg)
+            self.status_var.set(error_msg)
         except Exception as e:
             error_msg = f"Connection test failed: {str(e)}"
             logger.error(error_msg, exc_info=True)
@@ -720,18 +1125,42 @@ class HockeyJerseyApp:
 
 def main():
     """Main entry point for the application."""
-    # Setup logging
-    setup_logging()
-    logger.info("=== Starting Hyland Hockey Jersey Order Management System ===")
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Hyland Hockey Jersey Order Management System')
+    parser.add_argument('--test', action='store_true', 
+                       help='Run in test mode (use test credentials and configuration)')
+    parser.add_argument('--production', action='store_true',
+                       help='Run in production mode (use production credentials and configuration)')
     
-    try:
-        app = HockeyJerseyApp()
-        app.run()
-    except Exception as e:
-        logger.critical(f"Application failed to start: {e}", exc_info=True)
-        raise
-    finally:
-        logger.info("=== Application shutdown complete ===")
+    args = parser.parse_args()
+    
+    # Setup logging first
+    setup_logging()
+    
+    # Determine test mode
+    test_mode = args.test
+    if args.production:
+        test_mode = False
+    
+    # If no mode specified, create a temporary config to check saved preferences
+    if not args.test and not args.production:
+        try:
+            # Create a temporary config to check saved preferences
+            temp_config = ConfigManager(test=False)  # Will load saved preferences
+            test_mode = temp_config.is_test_mode
+            logger.info(f"Using saved preference: {'test' if test_mode else 'production'} mode")
+        except Exception as e:
+            # Default to test mode if no mode specified (for safety)
+            test_mode = True
+            logger.info(f"No mode specified and failed to load preferences: {e}, defaulting to test mode for safety")
+    else:
+        logger.info(f"Using command line argument: {'test' if test_mode else 'production'} mode")
+    
+    logger.info(f"Starting application in {'test' if test_mode else 'production'} mode")
+    
+    # Create and run the application
+    app = HockeyJerseyApp(test_mode=test_mode)
+    app.run()
 
 
 if __name__ == "__main__":

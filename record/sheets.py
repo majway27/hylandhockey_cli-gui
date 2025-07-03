@@ -6,7 +6,7 @@ import pandas as pd
 import gspread
 import logging
 
-from auth.google_auth import get_credentials
+from auth.google_auth import get_credentials_with_retry, AuthenticationError
 from config.config_manager import ConfigManager
 
 
@@ -22,22 +22,31 @@ def read_google_sheet(sheet_name, config_manager: ConfigManager):
         
     Returns:
         pandas.DataFrame: The sheet data as a DataFrame
+        
+    Raises:
+        AuthenticationError: When authentication fails
     """
-    creds = get_credentials(config_manager)
-    gc = gspread.authorize(creds)
+    try:
+        creds = get_credentials_with_retry(config_manager)
+        gc = gspread.authorize(creds)
 
-    # Open the spreadsheet
-    spreadsheet = gc.open(sheet_name)
+        # Open the spreadsheet
+        spreadsheet = gc.open(sheet_name)
 
-    # Get the first worksheet
-    worksheet = spreadsheet.get_worksheet(0)
+        # Get the first worksheet
+        worksheet = spreadsheet.get_worksheet(0)
 
-    # Get all values and convert to pandas DataFrame
-    data = worksheet.get_all_values()
-    headers = data[0]
-    df = pd.DataFrame(data[1:], columns=headers)
+        # Get all values and convert to pandas DataFrame
+        data = worksheet.get_all_values()
+        headers = data[0]
+        df = pd.DataFrame(data[1:], columns=headers)
 
-    return df
+        return df
+    except AuthenticationError:
+        raise
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Error reading Google sheet: {e}")
+        raise
 
 def read_google_sheet_by_id(spreadsheet_id, worksheet_gid, config_manager: ConfigManager):
     """
@@ -50,21 +59,30 @@ def read_google_sheet_by_id(spreadsheet_id, worksheet_gid, config_manager: Confi
         
     Returns:
         pandas.DataFrame: The sheet data as a DataFrame
+        
+    Raises:
+        AuthenticationError: When authentication fails
     """
-    creds = get_credentials(config_manager)
-    gc = gspread.authorize(creds)
+    try:
+        creds = get_credentials_with_retry(config_manager)
+        gc = gspread.authorize(creds)
 
-    # Open the spreadsheet by ID
-    spreadsheet = gc.open_by_key(spreadsheet_id)
+        # Open the spreadsheet by ID
+        spreadsheet = gc.open_by_key(spreadsheet_id)
 
-    # Get the specific worksheet by gid
-    worksheet = spreadsheet.get_worksheet_by_id(int(worksheet_gid))
+        # Get the specific worksheet by gid
+        worksheet = spreadsheet.get_worksheet_by_id(int(worksheet_gid))
 
-    # Get all values with formulas and convert to pandas DataFrame
-    data = worksheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
-    df = pd.DataFrame(data)
+        # Get all values with formulas and convert to pandas DataFrame
+        data = worksheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
+        df = pd.DataFrame(data)
 
-    return df
+        return df
+    except AuthenticationError:
+        raise
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Error reading Google sheet by ID: {e}")
+        raise
 
 def update_cell(spreadsheet_id, worksheet_gid, cell_reference, value, config_manager: ConfigManager):
     """
@@ -79,9 +97,12 @@ def update_cell(spreadsheet_id, worksheet_gid, cell_reference, value, config_man
         
     Returns:
         bool: True if update was successful, False otherwise
+        
+    Raises:
+        AuthenticationError: When authentication fails
     """
     try:
-        creds = get_credentials(config_manager)
+        creds = get_credentials_with_retry(config_manager)
         gc = gspread.authorize(creds)
 
         # Open the spreadsheet by ID
@@ -112,6 +133,8 @@ def update_cell(spreadsheet_id, worksheet_gid, cell_reference, value, config_man
             })
         
         return True
+    except AuthenticationError:
+        raise
     except Exception as e:
         # Log error instead of printing
         logging.getLogger(__name__).error(f"Error updating cell: {str(e)}")

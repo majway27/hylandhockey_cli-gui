@@ -2,7 +2,9 @@ __init__.py
 config/config.yaml
 config/credentials*
 config/token*
+config/preferences.yaml
 config/email_signature.html
+tests/token*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

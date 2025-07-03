@@ -1,0 +1,7 @@
+# User Preferences Template
+# Copy this file to preferences.yaml to customize your settings
+
+# Test mode preference
+# true = Test mode (uses credentials_test.json and token_test.pickle)
+# false = Production mode (uses credentials.json and token.pickle)
+test_mode: true 

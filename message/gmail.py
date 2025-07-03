@@ -8,7 +8,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from googleapiclient.discovery import build
 
-from auth.google_auth import get_credentials
+from auth.google_auth import get_credentials_with_retry, AuthenticationError
 from config.config_manager import ConfigManager
 
 
@@ -25,28 +25,31 @@ def send_gmail(sender_email, to_email, subject, message_text, config_manager: Co
         
     Returns:
         dict: The sent message object
+        
+    Raises:
+        AuthenticationError: When authentication fails
     """
-    creds = get_credentials(config_manager)
-    service = build('gmail', 'v1', credentials=creds)
-
-    # Create message
-    message = MIMEMultipart('alternative')
-    message['to'] = to_email
-    message['from'] = sender_email
-    message['subject'] = subject
-
-    # Create plain text version by stripping HTML tags
-    import re
-    plain_text = re.sub('<[^<]+?>', '', message_text)
-    text_part = MIMEText(plain_text, 'plain')
-    html_part = MIMEText(message_text, 'html')
-    message.attach(text_part)
-    message.attach(html_part)
-
-    # Encode the message
-    raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
-    
     try:
+        creds = get_credentials_with_retry(config_manager)
+        service = build('gmail', 'v1', credentials=creds)
+
+        # Create message
+        message = MIMEMultipart('alternative')
+        message['to'] = to_email
+        message['from'] = sender_email
+        message['subject'] = subject
+
+        # Create plain text version by stripping HTML tags
+        import re
+        plain_text = re.sub('<[^<]+?>', '', message_text)
+        text_part = MIMEText(plain_text, 'plain')
+        html_part = MIMEText(message_text, 'html')
+        message.attach(text_part)
+        message.attach(html_part)
+
+        # Encode the message
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+        
         # Send the message
         message = service.users().messages().send(
             userId='me',
@@ -55,6 +58,8 @@ def send_gmail(sender_email, to_email, subject, message_text, config_manager: Co
         # Log message ID instead of printing
         logging.getLogger(__name__).info(f'Message sent successfully. Message Id: {message["id"]}')
         return message
+    except AuthenticationError:
+        raise
     except Exception as e:
         # Log error instead of printing
         logging.getLogger(__name__).error(f'Error sending message: {e}')
@@ -73,28 +78,31 @@ def create_gmail_draft(sender_email, to_email, subject, message_text, config_man
         
     Returns:
         dict: The created draft message object
+        
+    Raises:
+        AuthenticationError: When authentication fails
     """
-    creds = get_credentials(config_manager)
-    service = build('gmail', 'v1', credentials=creds)
-
-    # Create message
-    message = MIMEMultipart('alternative')
-    message['to'] = to_email
-    message['from'] = sender_email
-    message['subject'] = subject
-
-    # Create plain text version by stripping HTML tags
-    import re
-    plain_text = re.sub('<[^<]+?>', '', message_text)
-    text_part = MIMEText(plain_text, 'plain')
-    html_part = MIMEText(message_text, 'html')
-    message.attach(text_part)
-    message.attach(html_part)
-
-    # Encode the message
-    raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
-    
     try:
+        creds = get_credentials_with_retry(config_manager)
+        service = build('gmail', 'v1', credentials=creds)
+
+        # Create message
+        message = MIMEMultipart('alternative')
+        message['to'] = to_email
+        message['from'] = sender_email
+        message['subject'] = subject
+
+        # Create plain text version by stripping HTML tags
+        import re
+        plain_text = re.sub('<[^<]+?>', '', message_text)
+        text_part = MIMEText(plain_text, 'plain')
+        html_part = MIMEText(message_text, 'html')
+        message.attach(text_part)
+        message.attach(html_part)
+
+        # Encode the message
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+        
         # Create the draft
         draft = service.users().drafts().create(
             userId='me',
@@ -103,6 +111,8 @@ def create_gmail_draft(sender_email, to_email, subject, message_text, config_man
         # Log draft ID instead of printing
         logging.getLogger(__name__).info(f'Draft created successfully. Draft Id: {draft["id"]}')
         return draft
+    except AuthenticationError:
+        raise
     except Exception as e:
         # Log error instead of printing
         logging.getLogger(__name__).error(f'Error creating draft: {e}')
@@ -118,13 +128,16 @@ def send_all_drafts(config_manager: ConfigManager = None):
     Returns:
         list: A list of dictionaries containing the results of each send operation,
               including success status and message ID or error message
+              
+    Raises:
+        AuthenticationError: When authentication fails
     """
-    creds = get_credentials(config_manager)
-    service = build('gmail', 'v1', credentials=creds)
-    
-    results = []
-    
     try:
+        creds = get_credentials_with_retry(config_manager)
+        service = build('gmail', 'v1', credentials=creds)
+    
+        results = []
+        
         # Get all drafts
         drafts = service.users().drafts().list(userId='me').execute()
         
@@ -222,6 +235,8 @@ def send_all_drafts(config_manager: ConfigManager = None):
                 
         return results
         
+    except AuthenticationError:
+        raise
     except Exception as e:
         # Log error instead of printing
         logging.getLogger(__name__).error(f'Error processing drafts: {e}')

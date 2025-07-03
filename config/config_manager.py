@@ -28,6 +28,7 @@ class ConfigManager:
         self._config: Dict[str, Any] = {}
         self._test = test
         self._load_config(config_file)
+        self._load_user_preferences()
         logger.info(f"ConfigManager initialized successfully (test mode: {self._test})")
     
     def _load_config(self, config_file: Optional[str] = None) -> None:
@@ -60,6 +61,59 @@ class ConfigManager:
         except Exception as e:
             logger.error(f"Failed to load configuration from {config_path}: {e}", exc_info=True)
             raise
+    
+    def _load_user_preferences(self) -> None:
+        """Load user preferences from preferences.yaml file."""
+        current_dir = Path(__file__).parent
+        preferences_path = current_dir / 'preferences.yaml'
+        
+        if preferences_path.exists():
+            try:
+                yaml = YAML(typ='safe')
+                with open(preferences_path) as f:
+                    preferences = yaml.load(f) or {}
+                
+                # Override test mode if saved in preferences
+                if 'test_mode' in preferences:
+                    self._test = preferences['test_mode']
+                    logger.info(f"Loaded test mode preference: {self._test}")
+                    
+            except Exception as e:
+                logger.warning(f"Failed to load user preferences: {e}")
+        else:
+            logger.info("No user preferences file found, using default settings")
+    
+    def save_user_preferences(self) -> None:
+        """Save user preferences to preferences.yaml file."""
+        current_dir = Path(__file__).parent
+        preferences_path = current_dir / 'preferences.yaml'
+        
+        preferences = {
+            'test_mode': self._test
+        }
+        
+        try:
+            yaml = YAML(typ='safe')
+            with open(preferences_path, 'w') as f:
+                yaml.dump(preferences, f)
+            logger.info(f"User preferences saved to {preferences_path}")
+        except Exception as e:
+            logger.error(f"Failed to save user preferences: {e}")
+            raise
+    
+    def set_test_mode(self, test_mode: bool) -> None:
+        """
+        Set the test mode and save the preference.
+        
+        Args:
+            test_mode: True for test mode, False for production mode
+        """
+        if self._test != test_mode:
+            logger.info(f"Changing test mode from {self._test} to {test_mode}")
+            self._test = test_mode
+            self.save_user_preferences()
+        else:
+            logger.debug(f"Test mode already set to {test_mode}")
     
     def _get_value(self, key: str) -> Any:
         """Get a configuration value, respecting test mode."""
