@@ -9,8 +9,11 @@ from datetime import datetime
 from pathlib import Path
 
 from config.config_manager import ConfigManager
+from config.logging_config import get_logger
 import message.gmail as notify
 from workflow.order.models.jersey_worksheet_jersey_order import JerseyWorksheetJerseyOrder, FieldAwareDateTime
+
+logger = get_logger(__name__)
 
 
 class NoParentEmailError(Exception):
@@ -45,10 +48,12 @@ class OrderVerification:
         Args:
             config_manager: ConfigManager instance for configuration settings
         """
+        logger.info("Initializing OrderVerification")
         self.config = config_manager
         self.sender_email = self.config.jersey_sender_email
         self.template_path = Path(__file__).parent / 'templates' / 'verification_email.html'
         self.signature_path = Path(__file__).parent.parent.parent / 'config' / 'email_signature.html'
+        logger.info(f"OrderVerification initialized with sender email: {self.sender_email}")
         
     def _load_template(self) -> str:
         """Load the email template from file.
@@ -56,11 +61,19 @@ class OrderVerification:
         Returns:
             The template content as a string
         """
+        logger.debug(f"Loading email template from: {self.template_path}")
         try:
             with open(self.template_path, 'r') as f:
-                return f.read()
+                template_content = f.read()
+            logger.debug("Email template loaded successfully")
+            return template_content
         except FileNotFoundError:
-            raise FileNotFoundError(f"Email template not found at {self.template_path}")
+            error_msg = f"Email template not found at {self.template_path}"
+            logger.error(error_msg)
+            raise FileNotFoundError(error_msg)
+        except Exception as e:
+            logger.error(f"Error loading email template: {e}", exc_info=True)
+            raise
             
     def _load_signature(self) -> str:
         """Load the email signature from file.
@@ -68,11 +81,19 @@ class OrderVerification:
         Returns:
             The signature content as a string
         """
+        logger.debug(f"Loading email signature from: {self.signature_path}")
         try:
             with open(self.signature_path, 'r') as f:
-                return f.read()
+                signature_content = f.read()
+            logger.debug("Email signature loaded successfully")
+            return signature_content
         except FileNotFoundError:
-            raise FileNotFoundError(f"Email signature not found at {self.signature_path}")
+            error_msg = f"Email signature not found at {self.signature_path}"
+            logger.error(error_msg)
+            raise FileNotFoundError(error_msg)
+        except Exception as e:
+            logger.error(f"Error loading email signature: {e}", exc_info=True)
+            raise
     
     def get_pending_orders(self) -> List[OrderDetails]:
         """Get all orders pending verification.
@@ -83,13 +104,17 @@ class OrderVerification:
         Raises:
             NoParentEmailError: If an order is found with no parent email addresses
         """
+        logger.info("Getting pending orders")
+        
         # Get all jersey orders
         jersey_orders = JerseyWorksheetJerseyOrder.all(self.config)
+        logger.info(f"Found {len(jersey_orders)} possible jersey orders")
         
         # Filter for orders that need verification (contacted but not confirmed)
-        print(f"Found {len(jersey_orders)} possble jersey orders")
         pending_orders = []
         invalid_rows = []
+        no_email_count = 0
+        
         for idx, order in enumerate(jersey_orders, start=2):  # start=2 because row 1 is header
             # Silently drop the last row if it's the special "Last Jersey Name" row
             if idx == len(jersey_orders) + 1 and order.full_name == 'Last Jersey Name':
@@ -104,17 +129,16 @@ class OrderVerification:
             # Check if the order has been contacted or confirmed
             # A date value (FieldAwareDateTime or datetime) means it has been contacted/confirmed
             # An empty string or None means it hasn't been contacted/confirmed
-            #print(f"Debug - contacted: {order.contacted}")
             is_contacted = isinstance(order.contacted, (FieldAwareDateTime, datetime)) or (isinstance(order.contacted, str) and order.contacted.strip())
             is_confirmed = isinstance(order.confirmed, (FieldAwareDateTime, datetime)) or (isinstance(order.confirmed, str) and order.confirmed.strip())
             
             if not is_contacted and not is_confirmed:
                 # Check if any parent email exists
                 if not any([order.parent1_email, order.parent2_email, order.parent3_email, order.parent4_email]):
-                    print(f"Warning: No parent email found for order: {order.full_name} (row {idx})")
+                    logger.warning(f"No parent email found for order: {order.full_name} (row {idx})")
+                    no_email_count += 1
                     continue
                 
-                #print(f"Debug - raw_link_value for {order.full_name}: {order.raw_link_value}")
                 pending_orders.append(OrderDetails(
                     link=order.raw_link_value,
                     participant_first_name=order.first_name,
@@ -136,8 +160,12 @@ class OrderVerification:
                 ))
         
         if invalid_rows:
-            print(f"Skipping invalid rows: {', '.join(map(str, invalid_rows))}")
+            logger.info(f"Skipping invalid rows: {', '.join(map(str, invalid_rows))}")
         
+        if no_email_count > 0:
+            logger.warning(f"Skipped {no_email_count} orders due to missing parent emails")
+        
+        logger.info(f"Found {len(pending_orders)} pending orders")
         return pending_orders
     
     def get_next_pending_order(self) -> Optional[OrderDetails]:

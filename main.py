@@ -13,7 +13,12 @@ from ttkbootstrap.constants import *
 from ttkbootstrap.scrolled import ScrolledFrame
 
 from config.config_manager import ConfigManager
+from config.logging_config import setup_logging, get_logger
 from workflow.order.verification import OrderVerification, OrderDetails
+from utils.log_viewer import LogViewer
+
+# Setup logging
+logger = get_logger(__name__)
 
 
 class HockeyJerseyApp:
@@ -21,6 +26,8 @@ class HockeyJerseyApp:
     
     def __init__(self):
         """Initialize the main application window."""
+        logger.info("Initializing Hockey Jersey Order Management application")
+        
         self.root = ttk.Window(
             title="Hyland Hockey Jersey Order Management",
             themename="cosmo",
@@ -29,11 +36,14 @@ class HockeyJerseyApp:
         )
         
         # Initialize configuration
+        logger.debug("Initializing configuration manager")
         self.config = ConfigManager(test=True)
         self.order_verification = OrderVerification(self.config)
         
         # Setup UI
+        logger.debug("Setting up user interface")
         self.setup_ui()
+        logger.info("Application initialization completed")
         
     def setup_ui(self):
         """Setup the main user interface."""
@@ -71,6 +81,7 @@ class HockeyJerseyApp:
         self.create_orders_tab()
         self.create_email_tab()
         self.create_config_tab()
+        self.create_logs_tab()
         
     def create_dashboard_tab(self):
         """Create the main dashboard tab."""
@@ -288,8 +299,134 @@ class HockeyJerseyApp:
             style="info.TButton"
         ).pack(side=LEFT, padx=(0, 10))
         
+    def create_logs_tab(self):
+        """Create the logs viewing tab."""
+        logs_frame = ttk.Frame(self.notebook, padding=10)
+        self.notebook.add(logs_frame, text="Logs")
+        
+        # Initialize log viewer
+        self.log_viewer = LogViewer("logs")
+        
+        # Top controls frame
+        controls_frame = ttk.Frame(logs_frame)
+        controls_frame.pack(fill=X, pady=(0, 10))
+        
+        # Log file selection
+        file_frame = ttk.Frame(controls_frame)
+        file_frame.pack(side=LEFT, fill=X, expand=True)
+        
+        ttk.Label(file_frame, text="Log File:").pack(side=LEFT)
+        self.log_file_var = tk.StringVar()
+        self.log_file_combo = ttk.Combobox(
+            file_frame, 
+            textvariable=self.log_file_var,
+            width=30,
+            state="readonly"
+        )
+        self.log_file_combo.pack(side=LEFT, padx=(10, 0))
+        
+        # Filter controls
+        filter_frame = ttk.Frame(controls_frame)
+        filter_frame.pack(side=LEFT, padx=(20, 0))
+        
+        ttk.Label(filter_frame, text="Level:").pack(side=LEFT)
+        self.log_level_var = tk.StringVar(value="ALL")
+        level_combo = ttk.Combobox(
+            filter_frame,
+            textvariable=self.log_level_var,
+            values=["ALL", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+            width=10,
+            state="readonly"
+        )
+        level_combo.pack(side=LEFT, padx=(10, 0))
+        
+        ttk.Label(filter_frame, text="Search:").pack(side=LEFT, padx=(20, 0))
+        self.log_search_var = tk.StringVar()
+        search_entry = ttk.Entry(filter_frame, textvariable=self.log_search_var, width=20)
+        search_entry.pack(side=LEFT, padx=(10, 0))
+        
+        # Action buttons
+        button_frame = ttk.Frame(controls_frame)
+        button_frame.pack(side=RIGHT)
+        
+        ttk.Button(
+            button_frame,
+            text="Refresh",
+            command=self.refresh_logs,
+            style="info.TButton"
+        ).pack(side=LEFT, padx=(0, 10))
+        
+        ttk.Button(
+            button_frame,
+            text="Clear Filters",
+            command=self.clear_log_filters,
+            style="secondary.TButton"
+        ).pack(side=LEFT)
+        
+        # Log display area
+        display_frame = ttk.Frame(logs_frame)
+        display_frame.pack(fill=BOTH, expand=True)
+        
+        # Log text widget with scrollbars
+        text_frame = ttk.Frame(display_frame)
+        text_frame.pack(fill=BOTH, expand=True)
+        
+        # Create text widget with both scrollbars
+        self.log_text = tk.Text(
+            text_frame,
+            wrap=tk.NONE,
+            font=("Consolas", 9),
+            bg="#f8f9fa",
+            fg="#212529"
+        )
+        
+        # Configure color tags for log levels
+        self.log_text.tag_configure("error", foreground="#dc3545", background="#f8d7da")
+        self.log_text.tag_configure("warning", foreground="#856404", background="#fff3cd")
+        self.log_text.tag_configure("critical", foreground="#721c24", background="#f5c6cb")
+        self.log_text.tag_configure("info", foreground="#0c5460", background="#d1ecf1")
+        self.log_text.tag_configure("debug", foreground="#6c757d", background="#e2e3e5")
+        
+        # Vertical scrollbar
+        v_scrollbar = ttk.Scrollbar(text_frame, orient=VERTICAL, command=self.log_text.yview)
+        self.log_text.configure(yscrollcommand=v_scrollbar.set)
+        
+        # Horizontal scrollbar
+        h_scrollbar = ttk.Scrollbar(text_frame, orient=HORIZONTAL, command=self.log_text.xview)
+        self.log_text.configure(xscrollcommand=h_scrollbar.set)
+        
+        # Pack widgets
+        self.log_text.pack(side=LEFT, fill=BOTH, expand=True)
+        v_scrollbar.pack(side=RIGHT, fill=Y)
+        h_scrollbar.pack(side=BOTTOM, fill=X)
+        
+        # Status frame
+        status_frame = ttk.Frame(logs_frame)
+        status_frame.pack(fill=X, pady=(10, 0))
+        
+        self.log_status_var = tk.StringVar(value="Ready")
+        log_status_label = ttk.Label(
+            status_frame,
+            textvariable=self.log_status_var,
+            relief=SUNKEN,
+            anchor=W
+        )
+        log_status_label.pack(fill=X)
+        
+        # Initialize log files list
+        self.refresh_log_files()
+        
+        # Bind events for automatic refresh
+        self.log_file_combo.bind('<<ComboboxSelected>>', lambda e: self.refresh_logs())
+        level_combo.bind('<<ComboboxSelected>>', lambda e: self.refresh_logs())
+        search_entry.bind('<KeyRelease>', self.on_search_change)
+        
+        # Load initial log content
+        self.refresh_logs()
+        
     def refresh_dashboard(self):
         """Refresh the dashboard statistics."""
+        logger.info("Refreshing dashboard")
         try:
             self.status_var.set("Loading dashboard...")
             self.root.update()
@@ -303,12 +440,16 @@ class HockeyJerseyApp:
             self.total_orders_var.set(str(len(pending_orders)))
             
             self.status_var.set("Dashboard refreshed successfully")
+            logger.info(f"Dashboard refreshed successfully: {len(pending_orders)} pending orders")
             
         except Exception as e:
-            self.status_var.set(f"Error refreshing dashboard: {str(e)}")
+            error_msg = f"Error refreshing dashboard: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            self.status_var.set(error_msg)
             
     def refresh_orders(self):
         """Refresh the orders table."""
+        logger.info("Refreshing orders table")
         try:
             self.status_var.set("Loading orders...")
             self.root.update()
@@ -336,12 +477,16 @@ class HockeyJerseyApp:
                 ))
             
             self.status_var.set(f"Loaded {len(pending_orders)} pending orders")
+            logger.info(f"Orders table refreshed successfully: {len(pending_orders)} orders loaded")
             
         except Exception as e:
-            self.status_var.set(f"Error loading orders: {str(e)}")
+            error_msg = f"Error loading orders: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            self.status_var.set(error_msg)
             
     def get_next_order(self):
         """Get the next pending order and populate email form."""
+        logger.info("Getting next pending order")
         try:
             self.status_var.set("Getting next order...")
             self.root.update()
@@ -350,11 +495,15 @@ class HockeyJerseyApp:
             if next_order:
                 self.populate_email_form(next_order)
                 self.status_var.set(f"Loaded order for {next_order.participant_full_name}")
+                logger.info(f"Loaded next order for {next_order.participant_full_name}")
             else:
                 self.status_var.set("No pending orders found")
+                logger.info("No pending orders found")
                 
         except Exception as e:
-            self.status_var.set(f"Error getting next order: {str(e)}")
+            error_msg = f"Error getting next order: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            self.status_var.set(error_msg)
             
     def on_order_select(self, event):
         """Handle order selection in the treeview."""
@@ -424,6 +573,7 @@ class HockeyJerseyApp:
         
     def test_connection(self):
         """Test the connection to Google services."""
+        logger.info("Testing Google services connection")
         try:
             self.status_var.set("Testing connections...")
             self.root.update()
@@ -432,19 +582,153 @@ class HockeyJerseyApp:
             orders = self.order_verification.get_pending_orders()
             
             self.status_var.set(f"Connection test successful - {len(orders)} orders found")
+            logger.info(f"Connection test successful - {len(orders)} orders found")
             
         except Exception as e:
-            self.status_var.set(f"Connection test failed: {str(e)}")
+            error_msg = f"Connection test failed: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            self.status_var.set(error_msg)
+            
+    def refresh_log_files(self):
+        """Refresh the list of available log files."""
+        try:
+            log_files = self.log_viewer.list_log_files()
+            file_names = [f.name for f in log_files]
+            
+            self.log_file_combo['values'] = file_names
+            if file_names and not self.log_file_var.get():
+                self.log_file_var.set(file_names[0])  # Select first file by default
+                
+        except Exception as e:
+            logger.error(f"Error refreshing log files: {e}", exc_info=True)
+            self.log_status_var.set(f"Error loading log files: {str(e)}")
+    
+    def refresh_logs(self):
+        """Refresh the log display with current filters."""
+        try:
+            self.log_status_var.set("Loading logs...")
+            self.root.update()
+            
+            # Get current filter values
+            log_file = self.log_file_var.get()
+            level = self.log_level_var.get()
+            search = self.log_search_var.get()
+            
+            if not log_file:
+                self.log_text.delete(1.0, tk.END)
+                self.log_text.insert(1.0, "No log file selected")
+                self.log_status_var.set("No log file selected")
+                return
+            
+            # Clear current content
+            self.log_text.delete(1.0, tk.END)
+            
+            # Get filtered log content
+            level_filter = None if level == "ALL" else level
+            search_filter = None if not search.strip() else search.strip()
+            
+            # Read and filter log content
+            log_file_path = self.log_viewer.log_dir / log_file
+            if not log_file_path.exists():
+                self.log_text.insert(1.0, f"Log file not found: {log_file}")
+                self.log_status_var.set(f"Log file not found: {log_file}")
+                return
+            
+            with open(log_file_path, 'r', encoding='utf-8') as f:
+                all_lines = f.readlines()
+            
+            # Apply filters
+            filtered_lines = []
+            for line in all_lines:
+                # Apply level filter
+                if level_filter and level_filter.upper() not in line.upper():
+                    continue
+                
+                # Apply search filter
+                if search_filter and search_filter.lower() not in line.lower():
+                    continue
+                
+                filtered_lines.append(line)
+            
+            # Display filtered content
+            if filtered_lines:
+                # Show last 1000 lines to avoid memory issues
+                display_lines = filtered_lines[-1000:] if len(filtered_lines) > 1000 else filtered_lines
+                
+                for line in display_lines:
+                    # Add color coding for different log levels
+                    self.log_text.insert(tk.END, line)
+                    
+                    # Apply color tags based on log level
+                    line_start = self.log_text.index("end-2l linestart")
+                    line_end = self.log_text.index("end-1c")
+                    
+                    if "ERROR" in line.upper():
+                        self.log_text.tag_add("error", line_start, line_end)
+                    elif "WARNING" in line.upper():
+                        self.log_text.tag_add("warning", line_start, line_end)
+                    elif "CRITICAL" in line.upper():
+                        self.log_text.tag_add("critical", line_start, line_end)
+                    elif "INFO" in line.upper():
+                        self.log_text.tag_add("info", line_start, line_end)
+                    elif "DEBUG" in line.upper():
+                        self.log_text.tag_add("debug", line_start, line_end)
+                
+                # Auto-scroll to bottom
+                self.log_text.see(tk.END)
+                
+                self.log_status_var.set(
+                    f"Showing {len(display_lines)} of {len(filtered_lines)} lines "
+                    f"from {log_file} "
+                    f"(Level: {level}, Search: '{search}' if any)"
+                )
+            else:
+                self.log_text.insert(1.0, "No log entries match the current filters")
+                self.log_status_var.set("No matching log entries")
+                
+        except Exception as e:
+            error_msg = f"Error loading logs: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            self.log_text.delete(1.0, tk.END)
+            self.log_text.insert(1.0, f"Error: {error_msg}")
+            self.log_status_var.set(error_msg)
+    
+    def clear_log_filters(self):
+        """Clear all log filters and refresh display."""
+        self.log_level_var.set("ALL")
+        self.log_search_var.set("")
+        self.refresh_logs()
+    
+    def on_search_change(self, event):
+        """Handle search text changes with debouncing."""
+        # Cancel any existing timer
+        if hasattr(self, '_search_timer'):
+            self.root.after_cancel(self._search_timer)
+        
+        # Set a new timer to refresh after 500ms of no typing
+        self._search_timer = self.root.after(500, self.refresh_logs)
             
     def run(self):
         """Start the application."""
+        logger.info("Starting Hockey Jersey Order Management application")
         self.root.mainloop()
+        logger.info("Application shutdown")
 
 
 def main():
     """Main entry point for the application."""
-    app = HockeyJerseyApp()
-    app.run()
+    # Setup logging
+    setup_logging()
+    logger.info("=== Starting Hyland Hockey Jersey Order Management System ===")
+    
+    try:
+        app = HockeyJerseyApp()
+        app.run()
+    except Exception as e:
+        logger.critical(f"Application failed to start: {e}", exc_info=True)
+        raise
+    finally:
+        logger.info("=== Application shutdown complete ===")
 
 
 if __name__ == "__main__":

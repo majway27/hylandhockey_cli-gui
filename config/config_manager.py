@@ -7,6 +7,9 @@ import os
 from pathlib import Path
 from ruamel.yaml import YAML
 from typing import Any, Dict, List, Optional
+from .logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class ConfigManager:
@@ -21,10 +24,11 @@ class ConfigManager:
                         will look for config.yaml in the config directory.
             test: If True, will use test configuration values instead of production ones.
         """
+        logger.info(f"Initializing ConfigManager (test mode: {test})")
         self._config: Dict[str, Any] = {}
         self._test = test
         self._load_config(config_file)
-        print(f"Test mode: {self._test}")
+        logger.info(f"ConfigManager initialized successfully (test mode: {self._test})")
     
     def _load_config(self, config_file: Optional[str] = None) -> None:
         """Load configuration from YAML file."""
@@ -35,21 +39,27 @@ class ConfigManager:
         else:
             config_path = Path(config_file)
         
+        logger.debug(f"Loading configuration from: {config_path}")
+        
         if not config_path.exists():
             template_path = config_path.parent / 'config.yaml.template'
             if template_path.exists():
-                raise FileNotFoundError(
-                    f"config.yaml not found at {config_path}. Please copy "
-                    f"config.yaml.template to config.yaml and update the values."
-                )
+                error_msg = f"config.yaml not found at {config_path}. Please copy config.yaml.template to config.yaml and update the values."
+                logger.error(error_msg)
+                raise FileNotFoundError(error_msg)
             else:
-                raise FileNotFoundError(
-                    f"Neither config.yaml nor config.yaml.template found in {config_path.parent}"
-                )
+                error_msg = f"Neither config.yaml nor config.yaml.template found in {config_path.parent}"
+                logger.error(error_msg)
+                raise FileNotFoundError(error_msg)
         
-        yaml = YAML(typ='safe')
-        with open(config_path) as f:
-            self._config = yaml.load(f)
+        try:
+            yaml = YAML(typ='safe')
+            with open(config_path) as f:
+                self._config = yaml.load(f)
+            logger.info(f"Configuration loaded successfully from {config_path}")
+        except Exception as e:
+            logger.error(f"Failed to load configuration from {config_path}: {e}", exc_info=True)
+            raise
     
     def _get_value(self, key: str) -> Any:
         """Get a configuration value, respecting test mode."""
