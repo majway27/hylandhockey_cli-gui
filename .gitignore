@@ -1,3 +1,9 @@
+__init__.py
+config/config.yaml
+config/credentials*
+config/token*
+config/email_signature.html
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

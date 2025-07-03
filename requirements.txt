@@ -1,0 +1,23 @@
+# Core GUI Framework
+ttkbootstrap>=1.10.1
+
+# Google API Dependencies
+google-auth>=2.17.3
+google-auth-oauthlib>=1.0.0
+google-auth-httplib2>=0.1.0
+google-api-python-client>=2.86.0
+
+# Data Processing
+pandas>=1.5.3
+numpy>=1.24.2
+
+# Configuration Management
+ruamel.yaml>=0.17.21
+
+# Email Processing
+email-validator>=1.3.1
+
+# Development Dependencies (optional)
+# pytest>=7.3.1
+# black>=23.3.0
+# flake8>=6.0.0 

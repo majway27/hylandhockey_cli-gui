@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+        }}
+        .order-details {{
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }}
+        .order-item {{
+            margin: 10px 0;
+        }}
+    </style>
+</head>
+<body>
+    <p>Good morning, here is what you ordered for {participant_first_name} during registration:</p>
+
+    <div class="order-details">
+        <ul>
+            <li>Jersey Name: {jersey_name}</li>
+            <li>Jersey #: {jersey_number}</li>
+            <li>Jersey Size: {jersey_size}</li>
+            <li>Jersey Type: {jersey_type}</li>
+            <li>Sock Size: {sock_size}"</li>
+            <li>Sock Type: {sock_type}</li>
+            <li>Pant Shell Size: {pant_shell_size}</li>
+        </ul>
+    </div>
+
+    <p><a href="{link}">{link}</a></p>
+
+    <p>We do have samples available if you need to check the sizing but otherwise if everything looks good let me know and we'll get the order placed.</p>
+
+    {signature}
+</body>
+</html> 

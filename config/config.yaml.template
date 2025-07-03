@@ -1,0 +1,40 @@
+# Google API settings
+scopes:
+  - "https://www.googleapis.com/auth/drive"
+  - "https://www.googleapis.com/auth/gmail.send"
+  - "https://www.googleapis.com/auth/gmail.compose"
+  - "https://www.googleapis.com/auth/gmail.modify"
+  - "https://www.googleapis.com/auth/spreadsheets" 
+
+scopes_test:
+  - "https://www.googleapis.com/auth/drive"
+  - "https://www.googleapis.com/auth/gmail.send"
+  - "https://www.googleapis.com/auth/gmail.compose"
+  - "https://www.googleapis.com/auth/gmail.modify"
+  - "https://www.googleapis.com/auth/spreadsheets" 
+
+
+# Google Sheet settings
+demo_spreadsheet_name: "Demo Data"
+demo_spreadsheet_id: "1yEF5DceuqyJS33AV0JUxYBJlebdRf9_GigObNE1Q72U"
+demo_worksheet_form_responses_gid: "0"
+demo_worksheet_jersey_orders_gid: "314778728"
+
+jersey_spreadsheet_name: "Uniform Orders and Registrations"
+jersey_spreadsheet_name_test: "Uniform Orders and Registrations Test"
+jersey_spreadsheet_id: "CHANGE_ME"
+jersey_spreadsheet_id_test: "18d6u6X6h0OHliBs7Y2IR9jF-2zKAnpFqGajZAApMTSs"
+jersey_worksheet_jersey_orders_name: "Orders"
+jersey_worksheet_jersey_orders_name_test: "Orders Test"
+jersey_worksheet_jersey_orders_gid: "CHANGE_ME"
+jersey_worksheet_jersey_orders_gid_test: "CHANGE_ME"
+
+
+# Email settings
+demo_sender_email: "your-email@example.com"
+demo_default_to_email: "recipient@example.com"
+
+jersey_sender_email: "your-email@example.com"
+jersey_sender_email_test: "your-email@example.com"
+jersey_default_to_email: "recipient@example.com"
+jersey_default_to_email_test: "recipient@example.com"
