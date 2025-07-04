@@ -77,6 +77,8 @@ class ConfigManager:
                 if 'test_mode' in preferences:
                     self._test = preferences['test_mode']
                     logger.info(f"Loaded test mode preference: {self._test}")
+                
+                # Note: batch_order_size is loaded on-demand via get_batch_order_size()
                     
             except Exception as e:
                 logger.warning(f"Failed to load user preferences: {e}")
@@ -88,9 +90,18 @@ class ConfigManager:
         current_dir = Path(__file__).parent
         preferences_path = current_dir / 'preferences.yaml'
         
-        preferences = {
-            'test_mode': self._test
-        }
+        # Load existing preferences to preserve other settings
+        preferences = {}
+        if preferences_path.exists():
+            try:
+                yaml = YAML(typ='safe')
+                with open(preferences_path) as f:
+                    preferences = yaml.load(f) or {}
+            except Exception as e:
+                logger.warning(f"Failed to load existing preferences: {e}")
+        
+        # Update with current settings
+        preferences['test_mode'] = self._test
         
         try:
             yaml = YAML(typ='safe')
@@ -114,6 +125,62 @@ class ConfigManager:
             self.save_user_preferences()
         else:
             logger.debug(f"Test mode already set to {test_mode}")
+    
+    def get_batch_order_size(self) -> int:
+        """
+        Get the saved batch order size preference.
+        
+        Returns:
+            int: The batch order size, defaults to 1 if not set
+        """
+        current_dir = Path(__file__).parent
+        preferences_path = current_dir / 'preferences.yaml'
+        
+        if preferences_path.exists():
+            try:
+                yaml = YAML(typ='safe')
+                with open(preferences_path) as f:
+                    preferences = yaml.load(f) or {}
+                
+                return preferences.get('batch_order_size', 1)
+                    
+            except Exception as e:
+                logger.warning(f"Failed to load batch order size preference: {e}")
+        
+        return 1
+    
+    def set_batch_order_size(self, batch_size: int) -> None:
+        """
+        Set the batch order size and save the preference.
+        
+        Args:
+            batch_size: The number of orders to process in a batch
+        """
+        current_dir = Path(__file__).parent
+        preferences_path = current_dir / 'preferences.yaml'
+        
+        # Load existing preferences
+        preferences = {}
+        if preferences_path.exists():
+            try:
+                yaml = YAML(typ='safe')
+                with open(preferences_path) as f:
+                    preferences = yaml.load(f) or {}
+            except Exception as e:
+                logger.warning(f"Failed to load existing preferences: {e}")
+        
+        # Update batch order size
+        preferences['batch_order_size'] = batch_size
+        
+        # Save updated preferences
+        try:
+            yaml = YAML(typ='safe')
+            with open(preferences_path, 'w') as f:
+                yaml.dump(preferences, f)
+            logger.info(f"Batch order size preference saved: {batch_size}")
+        except Exception as e:
+            logger.error(f"Failed to save batch order size preference: {e}")
+            raise
     
     def _get_value(self, key: str) -> Any:
         """Get a configuration value, respecting test mode."""

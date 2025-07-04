@@ -4,4 +4,9 @@
 # Test mode preference
 # true = Test mode (uses credentials_test.json and token_test.pickle)
 # false = Production mode (uses credentials.json and token.pickle)
-test_mode: true 
+test_mode: true
+
+# Batch order size preference
+# Number of orders to process in a batch (default: 1)
+# This setting is automatically saved when changed in the Batch Orders view
+batch_order_size: 1 

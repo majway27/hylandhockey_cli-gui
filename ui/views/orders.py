@@ -30,6 +30,12 @@ class OrdersView(ttk.Frame):
             command=self.get_next_order,
             style="success.TButton"
         ).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(
+            toolbar_frame,
+            text="Preview Email",
+            command=self.preview_email,
+            style="warning.TButton"
+        ).pack(side=LEFT, padx=(0, 10))
         table_frame = ttk.Frame(self)
         table_frame.pack(fill=BOTH, expand=True, padx=20)
         columns = (
@@ -90,8 +96,21 @@ class OrdersView(ttk.Frame):
                 details += f"Confirmed: {order.confirmed}\n"
                 self.details_text.delete(1.0, tk.END)
                 self.details_text.insert(1.0, details)
+                # Automatically switch to email view when order is selected
                 if self.on_order_select:
                     self.on_order_select(order)
+
+    def preview_email(self):
+        """Preview email for the currently selected order."""
+        selection = self.orders_tree.selection()
+        if selection:
+            item_id = selection[0]
+            order = self.order_item_map.get(item_id)
+            if order and self.on_order_select:
+                self.on_order_select(order)
+        else:
+            # If no order is selected, try to get the next order
+            self.get_next_order()
 
     def get_next_order(self):
         """Get the next pending order and select it in the treeview."""
@@ -121,7 +140,7 @@ class OrdersView(ttk.Frame):
                     # Update the details text
                     self.handle_order_select(None)
                     
-                    # Call the callback if provided
+                    # Call the callback if provided (this will switch to email view)
                     if self.on_order_select:
                         self.on_order_select(order)
                     

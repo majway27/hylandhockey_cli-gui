@@ -4,6 +4,7 @@ from ttkbootstrap.constants import *
 from ui.navigation import NavigationPanel
 from ui.views.dashboard import DashboardView
 from ui.views.orders import OrdersView
+from ui.views.batch_orders import BatchOrdersView
 from ui.views.email import EmailView
 from ui.views.configuration import ConfigurationView
 from ui.views.logs import LogsView
@@ -16,7 +17,7 @@ class RegistrarApp:
         self.root = ttk.Window(
             title=f"Registrar Operations Center: {self.config.organization_name}",
             themename="cosmo",
-            size=(1200, 800),
+            size=(1500, 1000),
             resizable=(True, True)
         )
         self.status_var = tk.StringVar(value="Ready")
@@ -59,7 +60,8 @@ class RegistrarApp:
         # Instantiate all views but don't pack them yet
         self.views = {
             "Dashboard": DashboardView(self.content_area, self.config, self.order_verification),
-            "Orders": OrdersView(self.content_area, self.config, self.order_verification),
+            "Single (Order)": OrdersView(self.content_area, self.config, self.order_verification, on_order_select=self.show_email_view),
+            "Batch (Orders)": BatchOrdersView(self.content_area, self.config, self.order_verification),
             "Email": EmailView(self.content_area, self.config, self.order_verification),
             "Configuration": ConfigurationView(self.content_area, self.config, self.log_viewer),
             "Logs": LogsView(self.content_area, self.log_viewer),
@@ -84,6 +86,25 @@ class RegistrarApp:
             view.pack(fill=BOTH, expand=True)
             self.current_view = view
             self.status_var.set(f"Viewing: {view_name}")
+            
+            # Refresh data when switching to views that display order information
+            if view_name in ["Dashboard", "Single (Order)", "Batch (Orders)"] and hasattr(view, 'refresh'):
+                view.refresh()
+
+    def show_email_view(self, order=None):
+        """Switch to email view, optionally with order details populated."""
+        if self.current_view:
+            self.current_view.pack_forget()
+        
+        email_view = self.views.get("Email")
+        if email_view:
+            email_view.pack(fill=BOTH, expand=True)
+            self.current_view = email_view
+            self.status_var.set("Viewing: Email")
+            
+            # If an order was provided, populate the email view
+            if order and hasattr(email_view, 'populate_from_order'):
+                email_view.populate_from_order(order)
 
     def run(self):
         self.root.mainloop() 

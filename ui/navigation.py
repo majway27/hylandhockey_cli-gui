@@ -18,7 +18,7 @@ class NavigationPanel(ttk.Frame):
         # Top-level menu items
         menu_items = [
             ("Home", ["Dashboard"]),
-            ("Jersey", ["Orders", "Email"]),
+            ("Jersey", ["Single (Order)", "Batch (Orders)"]),
             ("Utility", ["Configuration", "Logs"]),
         ]
         for section, subitems in menu_items:
