@@ -255,6 +255,46 @@ class HockeyJerseyApp:
         email_frame = ttk.Frame(self.notebook, padding=10)
         self.notebook.add(email_frame, text="Email")
         
+        # Instructions
+        instructions_frame = ttk.LabelFrame(email_frame, text="Instructions", padding=10)
+        instructions_frame.pack(fill=X, pady=(0, 10))
+        
+        instructions_text = (
+            "1. Select an order from the Orders tab, or use 'Get Next Order' below\n"
+            "2. Review the generated email content\n"
+            "3. Click 'Generate Draft' to create a Gmail draft and update the contacted field\n"
+            "4. The draft will be created in your Gmail account"
+        )
+        
+        instructions_label = ttk.Label(
+            instructions_frame,
+            text=instructions_text,
+            font=("Helvetica", 9),
+            justify=tk.LEFT
+        )
+        instructions_label.pack(anchor=W)
+        
+        # Order selection
+        order_frame = ttk.LabelFrame(email_frame, text="Order Selection", padding=10)
+        order_frame.pack(fill=X, pady=(0, 10))
+        
+        ttk.Button(
+            order_frame,
+            text="Get Next Order",
+            command=self.get_next_order,
+            style="info.TButton"
+        ).pack(side=LEFT, padx=(0, 10))
+        
+        # Current order status
+        self.current_order_var = tk.StringVar(value="No order selected")
+        current_order_label = ttk.Label(
+            order_frame,
+            textvariable=self.current_order_var,
+            font=("Helvetica", 9),
+            foreground="gray"
+        )
+        current_order_label.pack(side=LEFT)
+        
         # Email composition area
         compose_frame = ttk.LabelFrame(email_frame, text="Email Composition", padding=10)
         compose_frame.pack(fill=BOTH, expand=True)
@@ -646,12 +686,18 @@ class HockeyJerseyApp:
             # Get pending orders
             pending_orders = self.order_verification.get_pending_orders()
             
+            # Store orders for later access
+            self.orders_list = pending_orders
+            
+            # Initialize order item map
+            self.order_item_map = {}
+            
             # Add to treeview
-            for order in pending_orders:
+            for i, order in enumerate(pending_orders):
                 contacted_status = "Yes" if order.contacted else "No"
                 confirmed_status = "Yes" if order.confirmed else "No"
                 
-                self.orders_tree.insert('', END, values=(
+                item_id = self.orders_tree.insert('', END, values=(
                     order.participant_full_name,
                     order.jersey_name,
                     order.jersey_number,
@@ -660,6 +706,8 @@ class HockeyJerseyApp:
                     contacted_status,
                     confirmed_status
                 ))
+                
+                self.order_item_map[item_id] = order
             
             self.status_var.set(f"Loaded {len(pending_orders)} pending orders")
             logger.info(f"Orders table refreshed successfully: {len(pending_orders)} orders loaded")
@@ -711,23 +759,38 @@ class HockeyJerseyApp:
         selection = self.orders_tree.selection()
         if selection:
             # Get the selected item
-            item = self.orders_tree.item(selection[0])
-            values = item['values']
-            
-            # Display details
-            details = f"Participant: {values[0]}\n"
-            details += f"Jersey Name: {values[1]}\n"
-            details += f"Jersey Number: {values[2]}\n"
-            details += f"Jersey Size: {values[3]}\n"
-            details += f"Jersey Type: {values[4]}\n"
-            details += f"Contacted: {values[5]}\n"
-            details += f"Confirmed: {values[6]}\n"
-            
-            self.details_text.delete(1.0, tk.END)
-            self.details_text.insert(1.0, details)
+            item_id = selection[0]
+            order = self.order_item_map.get(item_id)
+            if order:
+                self.populate_email_form(order)
+                # Display details
+                details = f"Participant: {order.participant_full_name}\n"
+                details += f"Jersey Name: {order.jersey_name}\n"
+                details += f"Jersey Number: {order.jersey_number}\n"
+                details += f"Jersey Size: {order.jersey_size}\n"
+                details += f"Jersey Type: {order.jersey_type}\n"
+                details += f"Contacted: {order.contacted}\n"
+                details += f"Confirmed: {order.confirmed}\n"
+                
+                self.details_text.delete(1.0, tk.END)
+                self.details_text.insert(1.0, details)
+                
+                # Switch to email tab to show the populated form
+                self.notebook.select(2)  # Email tab index
+                
+                self.status_var.set(f"Selected order for {order.participant_full_name}")
+            else:
+                self.status_var.set("Error: Could not retrieve order details")
             
     def populate_email_form(self, order: OrderDetails):
         """Populate the email form with order details."""
+        # Store the current order for later use
+        self.current_order = order
+        
+        # Update current order status display
+        if hasattr(self, 'current_order_var'):
+            self.current_order_var.set(f"Current order: {order.participant_full_name}")
+        
         # Set recipient (use first available parent email)
         parent_emails = [
             email for email in [
@@ -742,7 +805,7 @@ class HockeyJerseyApp:
             self.recipient_var.set(parent_emails[0])
         
         # Set subject
-        self.subject_var.set(f"Good morning, here is what you ordered for {order.participant_first_name} during registration:")
+        self.subject_var.set(f"{order.participant_full_name} Uniform Order Confirmation")
         
         # Generate email content
         try:
@@ -753,23 +816,59 @@ class HockeyJerseyApp:
             self.status_var.set(f"Error generating email content: {str(e)}")
             
     def generate_email_draft(self):
-        """Generate a Gmail draft with the current email content."""
+        """Generate a Gmail draft with the current email content and update the contacted field."""
         try:
             self.status_var.set("Generating Gmail draft...")
             self.root.update()
             
-            # This would need to be implemented to work with the current order
-            # For now, just show a message
-            self.status_var.set("Gmail draft generation not yet implemented")
+            # Check if we have a current order loaded
+            if not hasattr(self, 'current_order') or self.current_order is None:
+                self.status_var.set("No order selected. Please select an order first.")
+                return
             
+            # Generate the verification email (creates draft and updates contacted field)
+            draft_id = self.order_verification.generate_verification_email(self.current_order)
+            
+            if draft_id:
+                self.status_var.set(f"Gmail draft created successfully! Draft ID: {draft_id}")
+                logger.info(f"Generated verification email draft with ID: {draft_id}")
+                
+                # Show success message
+                from tkinter import messagebox
+                messagebox.showinfo(
+                    "Draft Created",
+                    f"Gmail draft created successfully!\n\n"
+                    f"Draft ID: {draft_id}\n"
+                    f"Order for: {self.current_order.participant_full_name}\n\n"
+                    f"The 'contacted' field has been updated in the spreadsheet."
+                )
+                
+                # Refresh the orders list to show updated contacted status
+                self.refresh_orders()
+            else:
+                self.status_var.set("Failed to create Gmail draft")
+                logger.error("Failed to create Gmail draft - no draft ID returned")
+                
         except Exception as e:
-            self.status_var.set(f"Error generating draft: {str(e)}")
+            error_msg = f"Error generating draft: {str(e)}"
+            self.status_var.set(error_msg)
+            logger.error(error_msg, exc_info=True)
+            
+            # Show error message
+            from tkinter import messagebox
+            messagebox.showerror("Draft Creation Failed", error_msg)
             
     def clear_email_form(self):
         """Clear the email form."""
         self.recipient_var.set("")
         self.subject_var.set("")
         self.email_text.delete(1.0, tk.END)
+        self.current_order = None
+        
+        # Update current order status display
+        if hasattr(self, 'current_order_var'):
+            self.current_order_var.set("No order selected")
+            
         self.status_var.set("Email form cleared")
         
     def check_auth_status(self):
