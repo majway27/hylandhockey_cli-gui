@@ -4,6 +4,8 @@ import tkinter as tk
 import threading
 import time
 
+from utils.rate_limiting import RateLimitExceededError
+
 class BatchOrdersView(ttk.Frame):
     def __init__(self, master, config, order_verification, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
@@ -191,6 +193,11 @@ class BatchOrdersView(ttk.Frame):
                 # Small delay to prevent overwhelming the system
                 time.sleep(0.5)
                 
+            except RateLimitExceededError as e:
+                self.log_output(f"⚠ Rate limit exceeded during batch processing: {str(e)}")
+                self.log_output("Batch processing paused due to rate limiting. Please wait a moment and try again.")
+                self.log_output("You can resume processing by clicking 'Start Batch Processing' again.")
+                break
             except Exception as e:
                 self.log_output(f"✗ Error processing order {run + 1}: {str(e)}")
                 self.log_output("Batch processing halted due to error")

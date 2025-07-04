@@ -32,3 +32,20 @@ jersey_sender_email: "your-email@example.com"
 jersey_sender_email_test: "your-email@example.com"
 jersey_default_to_email: "recipient@example.com"
 jersey_default_to_email_test: "recipient@example.com"
+
+# Rate limiting settings
+rate_limiting:
+  # Maximum number of retries for API calls
+  max_retries: 3
+  # Base delay in seconds before first retry
+  base_delay: 1.0
+  # Maximum delay in seconds (exponential backoff cap)
+  max_delay: 60.0
+  # Delay between batch operations in seconds
+  batch_delay: 0.5
+  # Delay between individual API calls in seconds
+  api_call_delay: 0.1
+  # Whether to use exponential backoff
+  use_exponential_backoff: true
+  # HTTP status codes to retry on
+  retry_status_codes: [429, 500, 502, 503, 504]

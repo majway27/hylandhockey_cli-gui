@@ -7,13 +7,15 @@ from dataclasses import dataclass
 from typing import List, Optional
 from datetime import datetime
 from pathlib import Path
+import logging
 
 from config.config_manager import ConfigManager
 from config.logging_config import get_logger
 import message.gmail as notify
 from workflow.order.models.jersey_worksheet_jersey_order import JerseyWorksheetJerseyOrder, FieldAwareDateTime
+from utils.rate_limiting import RateLimitExceededError, get_rate_limiting_config
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class NoParentEmailError(Exception):
@@ -40,6 +42,8 @@ class OrderDetails:
     contacted: str
     fitting: str
     confirmed: str
+    parent_emails: List[str]
+    registration_deep_link: str
 
 class OrderVerification:
     def __init__(self, config_manager: ConfigManager):
@@ -156,7 +160,9 @@ class OrderVerification:
                     parent4_email=order.parent4_email or '',
                     contacted=order.contacted or '',
                     fitting=order.fitting or '',
-                    confirmed=order.confirmed or ''
+                    confirmed=order.confirmed or '',
+                    parent_emails=[order.parent1_email, order.parent2_email, order.parent3_email, order.parent4_email],
+                    registration_deep_link=order.raw_link_value
                 ))
         
         if invalid_rows:
@@ -209,34 +215,33 @@ class OrderVerification:
             
         Returns:
             Draft ID of the created draft
+            
+        Raises:
+            NoParentEmailError: If no parent email is found for the order
+            Exception: If there is an error creating the draft
         """
+        if not order.parent_emails:
+            raise NoParentEmailError(f"No parent email found for {order.participant_full_name}")
+        
+        # Build the email content
         email_content = self.build_notification_template(order)
         
-        # Get all available parent emails
-        parent_emails = [
-            email for email in [
-                order.parent1_email,
-                order.parent2_email,
-                order.parent3_email,
-                order.parent4_email
-            ] if email
-        ]
+        # Get rate limiting config
+        rate_config = get_rate_limiting_config(self.config)
         
-        if not parent_emails:
-            raise NoParentEmailError(f"No parent email found for order: {order.participant_full_name}")
-        
-        # Join all parent emails with commas
-        to_email = ", ".join(parent_emails)
-        
-        draft = notify.create_gmail_draft(
-            sender_email=self.sender_email,
-            to_email=to_email,
-            subject=f"{order.participant_full_name} Uniform Order Confirmation",
-            message_text=email_content,
-            config_manager=self.config
+        # Use rate-limited Gmail function
+        draft = notify.create_gmail_draft_with_retry(
+            self.sender_email,
+            order.parent_emails[0],  # Send to first parent email
+            f"Jersey Order Verification - {order.participant_full_name}",
+            email_content,
+            self.config
         )
         
-        return draft['id'] if draft else None
+        if not draft:
+            raise Exception("Failed to create Gmail draft")
+        
+        return draft['id']
     
     def generate_verification_email(self, order: OrderDetails) -> str:
         """Generate a verification email for an order and update the contacted status.
@@ -249,6 +254,7 @@ class OrderVerification:
             
         Raises:
             NoParentEmailError: If no parent email is found for the order
+            RateLimitExceededError: If rate limit is exceeded after all retries
             Exception: If there is an error creating the draft or updating the sheet
         """
         try:
@@ -276,6 +282,10 @@ class OrderVerification:
             
         except NoParentEmailError as e:
             # Re-raise NoParentEmailError as it's a specific error we want to handle separately
+            raise
+        except RateLimitExceededError as e:
+            # Log rate limit error and re-raise
+            logger.error(f"Rate limit exceeded during verification email generation: {str(e)}")
             raise
         except Exception as e:
             # Log the error and re-raise with more context

@@ -263,4 +263,29 @@ class ConfigManager:
             if test_key not in self._config:
                 raise KeyError(f"Test configuration value '{test_key}' not found")
             return self._config[test_key]
-        return self._config.get(key, default) 
+        return self._config.get(key, default)
+    
+    def as_dict(self) -> Dict[str, Any]:
+        """
+        Return the loaded configuration as a dictionary.
+        """
+        return self._config
+    
+    def save_config(self, config_data: Dict[str, Any]) -> None:
+        """
+        Save configuration data back to the config file.
+        
+        Args:
+            config_data: The configuration data to save
+        """
+        current_dir = Path(__file__).parent
+        config_path = current_dir / 'config.yaml'
+        
+        try:
+            yaml = YAML(typ='safe')
+            with open(config_path, 'w') as f:
+                yaml.dump(config_data, f)
+            logger.info(f"Configuration saved successfully to {config_path}")
+        except Exception as e:
+            logger.error(f"Failed to save configuration to {config_path}: {e}", exc_info=True)
+            raise 

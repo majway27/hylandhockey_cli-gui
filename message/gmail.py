@@ -10,6 +10,7 @@ from googleapiclient.discovery import build
 
 from auth.google_auth import get_credentials_with_retry, AuthenticationError
 from config.config_manager import ConfigManager
+from utils.rate_limiting import RateLimiter, get_rate_limiting_config
 
 
 def send_gmail(sender_email, to_email, subject, message_text, config_manager: ConfigManager = None):
@@ -65,6 +66,65 @@ def send_gmail(sender_email, to_email, subject, message_text, config_manager: Co
         logging.getLogger(__name__).error(f'Error sending message: {e}')
         return None
 
+def send_gmail_with_retry(sender_email, to_email, subject, message_text, config_manager: ConfigManager = None):
+    """
+    Send an email using Gmail API with rate limiting and retry logic.
+    
+    Args:
+        sender_email (str): The email address of the sender
+        to_email (str): The email address of the recipient
+        subject (str): The subject of the email
+        message_text (str): The HTML body text of the email
+        config_manager (ConfigManager): Optional ConfigManager instance
+        
+    Returns:
+        dict: The sent message object
+        
+    Raises:
+        AuthenticationError: When authentication fails
+    """
+    if config_manager is None:
+        return send_gmail(sender_email, to_email, subject, message_text, config_manager)
+    
+    rate_config = get_rate_limiting_config(config_manager)
+    limiter = RateLimiter(rate_config)
+    
+    def _send_gmail():
+        creds = get_credentials_with_retry(config_manager)
+        service = build('gmail', 'v1', credentials=creds)
+
+        # Create message
+        message = MIMEMultipart('alternative')
+        message['to'] = to_email
+        message['from'] = sender_email
+        message['subject'] = subject
+
+        # Create plain text version by stripping HTML tags
+        import re
+        plain_text = re.sub('<[^<]+?>', '', message_text)
+        text_part = MIMEText(plain_text, 'plain')
+        html_part = MIMEText(message_text, 'html')
+        message.attach(text_part)
+        message.attach(html_part)
+
+        # Encode the message
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+        
+        # Send the message
+        sent_message = service.users().messages().send(
+            userId='me',
+            body={'raw': raw_message}
+        ).execute()
+        
+        logging.getLogger(__name__).info(f'Message sent successfully. Message Id: {sent_message["id"]}')
+        return sent_message
+    
+    try:
+        return limiter.retry_with_backoff(_send_gmail)
+    except Exception as e:
+        logging.getLogger(__name__).error(f'Error sending message with retry: {e}')
+        return None
+
 def create_gmail_draft(sender_email, to_email, subject, message_text, config_manager: ConfigManager = None):
     """
     Create a draft email using Gmail API.
@@ -116,6 +176,65 @@ def create_gmail_draft(sender_email, to_email, subject, message_text, config_man
     except Exception as e:
         # Log error instead of printing
         logging.getLogger(__name__).error(f'Error creating draft: {e}')
+        return None
+
+def create_gmail_draft_with_retry(sender_email, to_email, subject, message_text, config_manager: ConfigManager = None):
+    """
+    Create a draft email using Gmail API with rate limiting and retry logic.
+    
+    Args:
+        sender_email (str): The email address of the sender
+        to_email (str): The email address of the recipient
+        subject (str): The subject of the email
+        message_text (str): The HTML body text of the email
+        config_manager (ConfigManager): Optional ConfigManager instance
+        
+    Returns:
+        dict: The created draft message object
+        
+    Raises:
+        AuthenticationError: When authentication fails
+    """
+    if config_manager is None:
+        return create_gmail_draft(sender_email, to_email, subject, message_text, config_manager)
+    
+    rate_config = get_rate_limiting_config(config_manager)
+    limiter = RateLimiter(rate_config)
+    
+    def _create_draft():
+        creds = get_credentials_with_retry(config_manager)
+        service = build('gmail', 'v1', credentials=creds)
+
+        # Create message
+        message = MIMEMultipart('alternative')
+        message['to'] = to_email
+        message['from'] = sender_email
+        message['subject'] = subject
+
+        # Create plain text version by stripping HTML tags
+        import re
+        plain_text = re.sub('<[^<]+?>', '', message_text)
+        text_part = MIMEText(plain_text, 'plain')
+        html_part = MIMEText(message_text, 'html')
+        message.attach(text_part)
+        message.attach(html_part)
+
+        # Encode the message
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+        
+        # Create the draft
+        draft = service.users().drafts().create(
+            userId='me',
+            body={'message': {'raw': raw_message}}
+        ).execute()
+        
+        logging.getLogger(__name__).info(f'Draft created successfully. Draft Id: {draft["id"]}')
+        return draft
+    
+    try:
+        return limiter.retry_with_backoff(_create_draft)
+    except Exception as e:
+        logging.getLogger(__name__).error(f'Error creating draft with retry: {e}')
         return None
 
 def send_all_drafts(config_manager: ConfigManager = None):

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 import pandas as pd
 import logging
-from record.sheets import read_google_sheet_by_id, update_cell
+from record.sheets import read_google_sheet_by_id, update_cell, read_google_sheet_by_id_with_retry, update_cell_with_retry
 from config.config_manager import ConfigManager
 
 class FieldAwareDateTime(datetime):
@@ -158,8 +158,8 @@ class JerseyWorksheetJerseyOrder:
     @classmethod
     def all(cls, config_manager: ConfigManager) -> List['JerseyWorksheetJerseyOrder']:
         try:
-            # Read the sheet data using the record module
-            df = read_google_sheet_by_id(
+            # Read the sheet data using the record module with retry logic
+            df = read_google_sheet_by_id_with_retry(
                 config_manager.jersey_spreadsheet_id,
                 config_manager.jersey_worksheet_jersey_orders_gid,
                 config_manager
@@ -236,7 +236,7 @@ class JerseyWorksheetJerseyOrder:
         """
         try:
             # Get all orders to find the row index
-            df = read_google_sheet_by_id(
+            df = read_google_sheet_by_id_with_retry(
                 self.config_manager.jersey_spreadsheet_id,
                 self.config_manager.jersey_worksheet_jersey_orders_gid,
                 self.config_manager
@@ -268,7 +268,7 @@ class JerseyWorksheetJerseyOrder:
                 # Log update instead of printing
                 logging.getLogger(__name__).debug(f"Updating cell {cell_ref} with value {cell_value}")
                 
-                if not update_cell(
+                if not update_cell_with_retry(
                     self.config_manager.jersey_spreadsheet_id,
                     self.config_manager.jersey_worksheet_jersey_orders_gid,
                     cell_ref,

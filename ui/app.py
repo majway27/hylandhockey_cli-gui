@@ -63,7 +63,7 @@ class RegistrarApp:
             "Single (Order)": OrdersView(self.content_area, self.config, self.order_verification, on_order_select=self.show_email_view),
             "Batch (Orders)": BatchOrdersView(self.content_area, self.config, self.order_verification),
             "Email": EmailView(self.content_area, self.config, self.order_verification),
-            "Configuration": ConfigurationView(self.content_area, self.config, self.log_viewer),
+            "Configuration": ConfigurationView(self.content_area, self.config),
             "Logs": LogsView(self.content_area, self.log_viewer),
         }
         # Show Dashboard by default
