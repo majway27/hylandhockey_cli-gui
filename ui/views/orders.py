@@ -94,5 +94,52 @@ class OrdersView(ttk.Frame):
                     self.on_order_select(order)
 
     def get_next_order(self):
-        # Placeholder for integration
-        pass 
+        """Get the next pending order and select it in the treeview."""
+        try:
+            # Get the next pending order
+            next_order = self.order_verification.get_next_pending_order()
+            
+            if next_order is None:
+                # Show message that no pending orders are available
+                self.details_text.delete(1.0, tk.END)
+                self.details_text.insert(1.0, "No pending orders available.")
+                return
+            
+            # Refresh the orders list to ensure we have the latest data
+            self.refresh()
+            
+            # Find the order in the treeview and select it
+            for item_id, order in self.order_item_map.items():
+                if (order.participant_full_name == next_order.participant_full_name and
+                    order.jersey_name == next_order.jersey_name and
+                    order.jersey_number == next_order.jersey_number):
+                    
+                    # Select the item in the treeview
+                    self.orders_tree.selection_set(item_id)
+                    self.orders_tree.see(item_id)  # Ensure the item is visible
+                    
+                    # Update the details text
+                    self.handle_order_select(None)
+                    
+                    # Call the callback if provided
+                    if self.on_order_select:
+                        self.on_order_select(order)
+                    
+                    break
+            else:
+                # If we couldn't find the order in the treeview, show it in details
+                self.details_text.delete(1.0, tk.END)
+                details = f"Next Order Found:\n\n"
+                details += f"Participant: {next_order.participant_full_name}\n"
+                details += f"Jersey Name: {next_order.jersey_name}\n"
+                details += f"Jersey Number: {next_order.jersey_number}\n"
+                details += f"Jersey Size: {next_order.jersey_size}\n"
+                details += f"Jersey Type: {next_order.jersey_type}\n"
+                details += f"Contacted: {next_order.contacted}\n"
+                details += f"Confirmed: {next_order.confirmed}\n"
+                self.details_text.insert(1.0, details)
+                
+        except Exception as e:
+            # Show error in details text
+            self.details_text.delete(1.0, tk.END)
+            self.details_text.insert(1.0, f"Error getting next order: {str(e)}") 
