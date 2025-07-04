@@ -1,0 +1,89 @@
+import tkinter as tk
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
+from ui.navigation import NavigationPanel
+from ui.views.dashboard import DashboardView
+from ui.views.orders import OrdersView
+from ui.views.email import EmailView
+from ui.views.configuration import ConfigurationView
+from ui.views.logs import LogsView
+
+class RegistrarApp:
+    def __init__(self, config, order_verification, log_viewer):
+        self.config = config
+        self.order_verification = order_verification
+        self.log_viewer = log_viewer
+        self.root = ttk.Window(
+            title=f"Registrar Operations Center: {self.config.organization_name}",
+            themename="cosmo",
+            size=(1200, 800),
+            resizable=(True, True)
+        )
+        self.status_var = tk.StringVar(value="Ready")
+        self.views = {}
+        self.current_view = None
+        self.setup_ui()
+
+    def setup_ui(self):
+        # Main container
+        main_frame = ttk.Frame(self.root, padding=0)
+        main_frame.pack(fill=BOTH, expand=True)
+
+        # Header
+        header_frame = ttk.Frame(main_frame)
+        header_frame.pack(fill=X, pady=(0, 0))
+        title_label = ttk.Label(
+            header_frame,
+            text=f"Registrar Operations Center: {self.config.organization_name}",
+            font=("Helvetica", 16, "bold")
+        )
+        title_label.pack()
+
+        # Two-column layout
+        content_frame = ttk.Frame(main_frame)
+        content_frame.pack(fill=BOTH, expand=True)
+        content_frame.columnconfigure(0, weight=1, minsize=240)  # 20%
+        content_frame.columnconfigure(1, weight=4)  # 80%
+        content_frame.rowconfigure(0, weight=1)
+
+        # Navigation panel (left)
+        nav_panel = NavigationPanel(content_frame, on_select=self.show_view)
+        nav_panel.grid(row=0, column=0, sticky="nswe")
+
+        # Content area (right)
+        self.content_area = ttk.Frame(content_frame)
+        self.content_area.grid(row=0, column=1, sticky="nswe")
+        self.content_area.rowconfigure(0, weight=1)
+        self.content_area.columnconfigure(0, weight=1)
+
+        # Instantiate all views but don't pack them yet
+        self.views = {
+            "Dashboard": DashboardView(self.content_area, self.config, self.order_verification),
+            "Orders": OrdersView(self.content_area, self.config, self.order_verification),
+            "Email": EmailView(self.content_area, self.config, self.order_verification),
+            "Configuration": ConfigurationView(self.content_area, self.config, self.log_viewer),
+            "Logs": LogsView(self.content_area, self.log_viewer),
+        }
+        # Show Dashboard by default
+        self.show_view("Dashboard")
+
+        # Status bar
+        status_bar = ttk.Label(
+            main_frame,
+            textvariable=self.status_var,
+            relief=SUNKEN,
+            anchor=W
+        )
+        status_bar.pack(side=BOTTOM, fill=X, pady=(0, 0))
+
+    def show_view(self, view_name):
+        if self.current_view:
+            self.current_view.pack_forget()
+        view = self.views.get(view_name)
+        if view:
+            view.pack(fill=BOTH, expand=True)
+            self.current_view = view
+            self.status_var.set(f"Viewing: {view_name}")
+
+    def run(self):
+        self.root.mainloop() 
