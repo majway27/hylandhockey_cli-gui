@@ -13,6 +13,10 @@ scopes_test:
   - "https://www.googleapis.com/auth/gmail.modify"
   - "https://www.googleapis.com/auth/spreadsheets" 
 
+# Organization settings
+organization_name: "Rockstars Youth Hockey"
+organization_name_test: "Rockstars Youth Hockey Test"
+
 # Google Sheet settings
 jersey_spreadsheet_name: "Uniform Orders and Registrations"
 jersey_spreadsheet_name_test: "Uniform Orders and Registrations Test"

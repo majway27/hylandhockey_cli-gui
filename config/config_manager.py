@@ -139,6 +139,12 @@ class ConfigManager:
         """Get Google API scopes."""
         return self._get_value('scopes')
     
+    # Organization
+    @property
+    def organization_name(self) -> str:
+        """Get organization name."""
+        return self._get_value('organization_name')
+    
     # Record
     @property
     def jersey_spreadsheet_name(self) -> str:

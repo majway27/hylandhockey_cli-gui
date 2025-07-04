@@ -58,6 +58,7 @@ The application uses a tabbed interface with four main sections:
 4. **Configuration Tab**
    - System configuration display
    - Test mode indicator
+   - Authentication management
    - Connection testing
    - Spreadsheet information
 

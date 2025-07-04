@@ -43,8 +43,8 @@ The application uses Google OAuth 2.0 for authentication to access Google Sheets
 
 ## GUI Authentication Features
 
-### Dashboard Tab
-The dashboard includes an "Authentication" section with the following buttons:
+### Configuration Tab
+The configuration tab includes an "Authentication" section with the following buttons:
 
 - **Check Auth Status**: Verifies current authentication status without attempting to refresh
 - **Authenticate**: Initiates OAuth flow to obtain new credentials

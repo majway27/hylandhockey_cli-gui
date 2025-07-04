@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Hyland Hockey Jersey Order Management System
+Registrar Operations Center System
 Main GUI Application
 
 This application replaces the Jupyter notebook interface with a modern
-Tkinter + ttkbootstrap GUI for managing hockey jersey orders.
+Tkinter + ttkbootstrap GUI for managing youth hockey registrations and jersey orders.
 """
 
 import tkinter as tk
@@ -32,7 +32,7 @@ logger = get_logger(__name__)
 
 
 class HockeyJerseyApp:
-    """Main application class for the Hockey Jersey Order Management System."""
+    """Main application class for the Registrar Operations Center System."""
     
     def __init__(self, test_mode: bool = False):
         """
@@ -41,10 +41,14 @@ class HockeyJerseyApp:
         Args:
             test_mode: If True, use test configuration and credentials
         """
-        logger.info(f"Initializing Hockey Jersey Order Management application (test_mode: {test_mode})")
+        logger.info(f"Initializing Registrar Operations Center application (test_mode: {test_mode})")
         
-        # Set title based on mode
-        title = "Hyland Hockey Jersey Order Management"
+        # Initialize configuration first to get organization name
+        logger.debug(f"Initializing configuration manager (test_mode: {test_mode})")
+        self.config = ConfigManager(test=test_mode)
+        
+        # Set title based on mode and organization name
+        title = f"Registrar Operations Center: {self.config.organization_name}"
         if test_mode:
             title += " (TEST MODE)"
         else:
@@ -56,10 +60,6 @@ class HockeyJerseyApp:
             size=(1200, 800),
             resizable=(True, True)
         )
-        
-        # Initialize configuration
-        logger.debug(f"Initializing configuration manager (test_mode: {test_mode})")
-        self.config = ConfigManager(test=test_mode)
         
         self.order_verification = OrderVerification(self.config)
         
@@ -87,7 +87,7 @@ class HockeyJerseyApp:
         
         title_label = ttk.Label(
             header_frame, 
-            text="Hyland Hockey Jersey Order Management",
+            text=f"Registrar Operations Center: {self.config.organization_name}",
             font=("Helvetica", 16, "bold")
         )
         title_label.pack()
@@ -113,16 +113,21 @@ class HockeyJerseyApp:
         self.create_config_tab()
         self.create_logs_tab()
         
+        # Update dashboard tab text to reflect initial mode
+        self.update_dashboard_tab_text()
+        
     def create_dashboard_tab(self):
         """Create the main dashboard tab."""
         dashboard_frame = ttk.Frame(self.notebook, padding=10)
+        # Store reference to dashboard frame for tab text updates
+        self.dashboard_frame = dashboard_frame
         self.notebook.add(dashboard_frame, text="Dashboard")
         
         # Dashboard content
         mode_text = "TEST MODE" if self.config.is_test_mode else "PRODUCTION MODE"
         welcome_label = ttk.Label(
             dashboard_frame,
-            text=f"Welcome to the Jersey Order Management System",
+            text=f"Welcome to the Registrar Operations System",
             font=("Helvetica", 12)
         )
         welcome_label.pack(pady=(20, 5))
@@ -162,41 +167,6 @@ class HockeyJerseyApp:
             style="primary.TButton"
         )
         refresh_btn.pack(side=LEFT, padx=(0, 10))
-        
-        # Authentication buttons
-        auth_frame = ttk.LabelFrame(dashboard_frame, text="Authentication", padding=10)
-        auth_frame.pack(fill=X, pady=10)
-        
-        auth_buttons_frame = ttk.Frame(auth_frame)
-        auth_buttons_frame.pack()
-        
-        ttk.Button(
-            auth_buttons_frame,
-            text="Check Auth Status",
-            command=self.check_auth_status,
-            style="info.TButton"
-        ).pack(side=LEFT, padx=(0, 10))
-        
-        ttk.Button(
-            auth_buttons_frame,
-            text="Authenticate",
-            command=self.authenticate_user,
-            style="success.TButton"
-        ).pack(side=LEFT, padx=(0, 10))
-        
-        ttk.Button(
-            auth_buttons_frame,
-            text="Clear Tokens",
-            command=self.clear_auth_tokens,
-            style="danger.TButton"
-        ).pack(side=LEFT, padx=(0, 10))
-        
-        ttk.Button(
-            auth_buttons_frame,
-            text="Test Connection",
-            command=self.test_connection,
-            style="warning.TButton"
-        ).pack(side=LEFT)
         
         # Initial load
         self.refresh_dashboard()
@@ -428,6 +398,41 @@ class HockeyJerseyApp:
         )
         spreadsheet_info_label.pack(anchor=W)
         
+        # Authentication Section
+        auth_frame = ttk.LabelFrame(config_frame, text="Authentication", padding=10)
+        auth_frame.pack(fill=X, pady=(0, 20))
+        
+        auth_buttons_frame = ttk.Frame(auth_frame)
+        auth_buttons_frame.pack()
+        
+        ttk.Button(
+            auth_buttons_frame,
+            text="Check Auth Status",
+            command=self.check_auth_status,
+            style="info.TButton"
+        ).pack(side=LEFT, padx=(0, 10))
+        
+        ttk.Button(
+            auth_buttons_frame,
+            text="Authenticate",
+            command=self.authenticate_user,
+            style="success.TButton"
+        ).pack(side=LEFT, padx=(0, 10))
+        
+        ttk.Button(
+            auth_buttons_frame,
+            text="Clear Tokens",
+            command=self.clear_auth_tokens,
+            style="danger.TButton"
+        ).pack(side=LEFT, padx=(0, 10))
+        
+        ttk.Button(
+            auth_buttons_frame,
+            text="Test Connection",
+            command=self.test_connection,
+            style="warning.TButton"
+        ).pack(side=LEFT)
+        
         # Actions
         actions_frame = ttk.LabelFrame(config_frame, text="Actions", padding=10)
         actions_frame.pack(fill=X)
@@ -438,20 +443,6 @@ class HockeyJerseyApp:
             command=self.refresh_config_tab,
             style="info.TButton"
         ).pack(side=LEFT, padx=(0, 10))
-        
-        ttk.Button(
-            actions_frame,
-            text="Test Connection",
-            command=self.test_connection,
-            style="info.TButton"
-        ).pack(side=LEFT, padx=(0, 10))
-        
-        ttk.Button(
-            actions_frame,
-            text="Clear Auth Tokens",
-            command=self.clear_auth_tokens,
-            style="danger.TButton"
-        ).pack(side=LEFT)
         
     def create_logs_tab(self):
         """Create the logs viewing tab."""
@@ -586,6 +577,20 @@ class HockeyJerseyApp:
             foreground="red" if self.config.is_test_mode else "green"
         )
     
+    def update_dashboard_tab_text(self):
+        """Update the dashboard tab header text to reflect current mode."""
+        # Find the tab index for the dashboard frame
+        for i in range(self.notebook.index('end')):
+            if self.notebook.winfo_children()[i] == self.dashboard_frame:
+                # Update the tab text to include mode information
+                tab_text = f"Dashboard: {self.config.organization_name}"
+                if self.config.is_test_mode:
+                    tab_text += " (TEST)"
+                else:
+                    tab_text += " (PROD)"
+                self.notebook.tab(i, text=tab_text)
+                break
+    
     def refresh_dashboard(self):
         """Refresh the dashboard statistics."""
         logger.info("Refreshing dashboard")
@@ -595,6 +600,7 @@ class HockeyJerseyApp:
             
             # Update mode label
             self.update_dashboard_mode_label()
+            self.update_dashboard_tab_text()
             
             # Get pending orders
             pending_orders = self.order_verification.get_pending_orders()
@@ -867,7 +873,7 @@ class HockeyJerseyApp:
             self.config.set_test_mode(test_mode)
             
             # Update the application title
-            title = "Hyland Hockey Jersey Order Management"
+            title = f"Registrar Operations Center: {self.config.organization_name}"
             if test_mode:
                 title += " (TEST MODE)"
             else:
@@ -896,8 +902,9 @@ class HockeyJerseyApp:
             self.update_config_info()
             self.update_spreadsheet_info()
             
-            # Update dashboard mode indicator
+            # Update dashboard mode indicator and tab text
             self.refresh_dashboard()
+            self.update_dashboard_tab_text()
             
             self.status_var.set(f"Switched to {'test' if test_mode else 'production'} mode successfully")
             
@@ -1126,7 +1133,7 @@ class HockeyJerseyApp:
 def main():
     """Main entry point for the application."""
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Hyland Hockey Jersey Order Management System')
+    parser = argparse.ArgumentParser(description='Registrar Operations Center System')
     parser.add_argument('--test', action='store_true', 
                        help='Run in test mode (use test credentials and configuration)')
     parser.add_argument('--production', action='store_true',

@@ -87,7 +87,7 @@ This ensures that:
 
 ## Usage
 
-1. **Authentication**: Use the "Authenticate" button in the Dashboard tab
+1. **Authentication**: Use the "Authenticate" button in the Configuration tab
 2. **View Orders**: Check the Orders tab to see all jersey orders
 3. **Process Orders**: Use the email functionality to contact customers
 4. **Monitor Logs**: Check the Logs tab for detailed application logs
