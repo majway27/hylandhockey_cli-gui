@@ -37,13 +37,13 @@ class RegistrarApp:
             text=f"Registrar Operations Center: {self.config.organization_name}",
             font=("Helvetica", 16, "bold")
         )
-        title_label.pack()
+        title_label.pack(pady=(18, 18), padx=10)
 
         # Two-column layout
         content_frame = ttk.Frame(main_frame)
         content_frame.pack(fill=BOTH, expand=True)
-        content_frame.columnconfigure(0, weight=1, minsize=240)  # 20%
-        content_frame.columnconfigure(1, weight=4)  # 80%
+        content_frame.columnconfigure(0, weight=1, minsize=192)
+        content_frame.columnconfigure(1, weight=17)
         content_frame.rowconfigure(0, weight=1)
 
         # Navigation panel (left)

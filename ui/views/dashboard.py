@@ -28,7 +28,7 @@ class DashboardView(ttk.Frame):
         )
         self.mode_label.pack(pady=(0, 20))
         stats_frame = ttk.LabelFrame(self, text="Quick Statistics", padding=10)
-        stats_frame.pack(fill=X, pady=10)
+        stats_frame.pack(fill=X, pady=10, padx=20)
         ttk.Label(stats_frame, text="Pending Orders:").grid(row=0, column=0, sticky=W, padx=(0, 10))
         ttk.Label(stats_frame, textvariable=self.pending_orders_var).grid(row=0, column=1, sticky=W)
         ttk.Label(stats_frame, text="Total Orders:").grid(row=1, column=0, sticky=W, padx=(0, 10))

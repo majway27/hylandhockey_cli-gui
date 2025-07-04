@@ -14,7 +14,7 @@ class EmailView(ttk.Frame):
 
     def build_ui(self):
         instructions_frame = ttk.LabelFrame(self, text="Instructions", padding=10)
-        instructions_frame.pack(fill=X, pady=(0, 10))
+        instructions_frame.pack(fill=X, pady=(0, 10), padx=20)
         instructions_text = (
             "1. Select an order from the Orders tab, or use 'Get Next Order' below\n"
             "2. Review the generated email content\n"
@@ -29,7 +29,7 @@ class EmailView(ttk.Frame):
         )
         instructions_label.pack(anchor=W)
         order_frame = ttk.LabelFrame(self, text="Order Selection", padding=10)
-        order_frame.pack(fill=X, pady=(0, 10))
+        order_frame.pack(fill=X, pady=(0, 10), padx=20)
         ttk.Button(
             order_frame,
             text="Get Next Order",
@@ -45,7 +45,7 @@ class EmailView(ttk.Frame):
         )
         current_order_label.pack(side=LEFT)
         compose_frame = ttk.LabelFrame(self, text="Email Composition", padding=10)
-        compose_frame.pack(fill=BOTH, expand=True)
+        compose_frame.pack(fill=BOTH, expand=True, padx=20)
         recipient_frame = ttk.Frame(compose_frame)
         recipient_frame.pack(fill=X, pady=(0, 10))
         ttk.Label(recipient_frame, text="To:").pack(side=LEFT)

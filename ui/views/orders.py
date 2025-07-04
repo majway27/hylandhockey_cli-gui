@@ -17,7 +17,7 @@ class OrdersView(ttk.Frame):
 
     def build_ui(self):
         toolbar_frame = ttk.Frame(self)
-        toolbar_frame.pack(fill=X, pady=(0, 10))
+        toolbar_frame.pack(fill=X, pady=(0, 10), padx=20)
         ttk.Button(
             toolbar_frame,
             text="Refresh Orders",
@@ -31,7 +31,7 @@ class OrdersView(ttk.Frame):
             style="success.TButton"
         ).pack(side=LEFT, padx=(0, 10))
         table_frame = ttk.Frame(self)
-        table_frame.pack(fill=BOTH, expand=True)
+        table_frame.pack(fill=BOTH, expand=True, padx=20)
         columns = (
             'name', 'jersey_name', 'jersey_number', 'jersey_size', 
             'jersey_type', 'contacted', 'confirmed'
@@ -51,7 +51,7 @@ class OrdersView(ttk.Frame):
         scrollbar.pack(side=RIGHT, fill=Y)
         self.orders_tree.bind('<<TreeviewSelect>>', self.handle_order_select)
         details_frame = ttk.LabelFrame(self, text="Order Details", padding=10)
-        details_frame.pack(fill=X, pady=(10, 0))
+        details_frame.pack(fill=X, pady=(10, 0), padx=20)
         self.details_text = tk.Text(details_frame, height=8, wrap=tk.WORD)
         self.details_text.pack(fill=X)
 

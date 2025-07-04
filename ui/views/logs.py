@@ -15,7 +15,7 @@ class LogsView(ttk.Frame):
 
     def build_ui(self):
         controls_frame = ttk.Frame(self)
-        controls_frame.pack(fill=X, pady=(0, 10))
+        controls_frame.pack(fill=X, pady=(0, 10), padx=20)
         file_frame = ttk.Frame(controls_frame)
         file_frame.pack(side=LEFT, fill=X, expand=True)
         ttk.Label(file_frame, text="Log File:").pack(side=LEFT)
@@ -55,7 +55,7 @@ class LogsView(ttk.Frame):
             style="secondary.TButton"
         ).pack(side=LEFT)
         display_frame = ttk.Frame(self)
-        display_frame.pack(fill=BOTH, expand=True)
+        display_frame.pack(fill=BOTH, expand=True, padx=20)
         text_frame = ttk.Frame(display_frame)
         text_frame.pack(fill=BOTH, expand=True)
         self.log_text = tk.Text(
@@ -73,7 +73,7 @@ class LogsView(ttk.Frame):
         v_scrollbar.pack(side=RIGHT, fill=Y)
         h_scrollbar.pack(side=BOTTOM, fill=X)
         status_frame = ttk.Frame(self)
-        status_frame.pack(fill=X, pady=(10, 0))
+        status_frame.pack(fill=X, pady=(10, 0), padx=20)
         log_status_label = ttk.Label(
             status_frame,
             textvariable=self.log_status_var,

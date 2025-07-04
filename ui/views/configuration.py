@@ -16,7 +16,7 @@ class ConfigurationView(ttk.Frame):
 
     def build_ui(self):
         mode_frame = ttk.LabelFrame(self, text="Environment Mode", padding=10)
-        mode_frame.pack(fill=X, pady=(0, 20))
+        mode_frame.pack(fill=X, pady=(0, 20), padx=20)
         mode_selection_frame = ttk.Frame(mode_frame)
         mode_selection_frame.pack(fill=X, pady=(0, 10))
         ttk.Label(mode_selection_frame, text="Current Mode:").pack(side=LEFT)
@@ -44,7 +44,7 @@ class ConfigurationView(ttk.Frame):
         )
         mode_desc_label.pack(anchor=W)
         info_frame = ttk.LabelFrame(self, text="Configuration Information", padding=10)
-        info_frame.pack(fill=X, pady=(0, 20))
+        info_frame.pack(fill=X, pady=(0, 20), padx=20)
         config_info_label = ttk.Label(
             info_frame,
             textvariable=self.config_info_var,
@@ -53,7 +53,7 @@ class ConfigurationView(ttk.Frame):
         )
         config_info_label.pack(anchor=W)
         spreadsheet_frame = ttk.LabelFrame(self, text="Spreadsheet Configuration", padding=10)
-        spreadsheet_frame.pack(fill=X, pady=(0, 20))
+        spreadsheet_frame.pack(fill=X, pady=(0, 20), padx=20)
         spreadsheet_info_label = ttk.Label(
             spreadsheet_frame,
             textvariable=self.spreadsheet_info_var,
