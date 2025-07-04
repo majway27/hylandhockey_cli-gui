@@ -28,7 +28,7 @@ source venv/bin/activate
 
 # Install/upgrade requirements
 echo "Installing/upgrading requirements..."
-pip install -r requirements.txt
+pip install -r requirements.txt 2>&1 | grep -v "Requirement already satisfied:"
 
 # Run the application with provided arguments
 echo "Starting application..."
