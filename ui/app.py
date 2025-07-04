@@ -16,7 +16,7 @@ class RegistrarApp:
         self.log_viewer = log_viewer
         self.root = ttk.Window(
             title=f"Registrar Operations Center: {self.config.organization_name}",
-            themename="cosmo",
+            themename="united",
             size=(1500, 1000),
             resizable=(True, True)
         )
