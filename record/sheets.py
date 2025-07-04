@@ -109,7 +109,11 @@ def read_google_sheet_by_id_with_retry(spreadsheet_id, worksheet_gid, config_man
         spreadsheet = gc.open_by_key(spreadsheet_id)
         worksheet = spreadsheet.get_worksheet_by_id(int(worksheet_gid))
         data = worksheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
-        return pd.DataFrame(data)
+        df = pd.DataFrame(data)
+        # Ensure Jersey # column is always a string to preserve leading zeros
+        if 'Jersey #' in df.columns:
+            df['Jersey #'] = df['Jersey #'].apply(lambda x: '' if pd.isna(x) else str(x))
+        return df
     
     return limiter.retry_with_backoff(_read_sheet)
 

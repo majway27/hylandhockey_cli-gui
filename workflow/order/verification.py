@@ -148,7 +148,7 @@ class OrderVerification:
                     participant_first_name=order.first_name,
                     participant_full_name=order.full_name,
                     jersey_name=order.jersey_name or '',
-                    jersey_number=order.jersey_number or '',
+                    jersey_number=str(order.jersey_number) if order.jersey_number is not None else '',
                     jersey_size=order.jersey_size or '',
                     jersey_type=order.jersey_type or '',
                     sock_size=order.sock_size or '',

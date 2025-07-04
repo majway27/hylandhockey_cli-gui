@@ -214,6 +214,7 @@ Recommended settings for most users:
         self.update_mode_description()
         self.update_config_info()
         self.update_spreadsheet_info()
+        self.load_config()  # Reload configuration values to reflect current mode
 
     def on_mode_change(self):
         """Handle mode change via radio buttons."""
@@ -266,14 +267,13 @@ Recommended settings for most users:
     def load_config(self):
         """Load current configuration into the UI."""
         try:
+            # Use ConfigManager properties to respect test mode
+            self.org_name_var.set(self.config.organization_name)
+            self.sender_email_var.set(self.config.jersey_sender_email)
+            self.recipient_email_var.set(self.config.jersey_default_to_email)
+            
+            # Rate limiting settings (these don't have test variants, so use raw config)
             config_data = self.config.as_dict()
-            
-            # General settings
-            self.org_name_var.set(config_data.get('organization_name', ''))
-            self.sender_email_var.set(config_data.get('jersey_sender_email', ''))
-            self.recipient_email_var.set(config_data.get('jersey_default_to_email', ''))
-            
-            # Rate limiting settings
             rate_limiting = config_data.get('rate_limiting', {})
             self.max_retries_var.set(str(rate_limiting.get('max_retries', 3)))
             self.base_delay_var.set(str(rate_limiting.get('base_delay', 1.0)))
@@ -291,10 +291,15 @@ Recommended settings for most users:
         try:
             config_data = self.config.as_dict()
             
-            # Update general settings
-            config_data['organization_name'] = self.org_name_var.get()
-            config_data['jersey_sender_email'] = self.sender_email_var.get()
-            config_data['jersey_default_to_email'] = self.recipient_email_var.get()
+            # Update general settings based on current mode
+            if self.config.is_test_mode:
+                config_data['organization_name_test'] = self.org_name_var.get()
+                config_data['jersey_sender_email_test'] = self.sender_email_var.get()
+                config_data['jersey_default_to_email_test'] = self.recipient_email_var.get()
+            else:
+                config_data['organization_name'] = self.org_name_var.get()
+                config_data['jersey_sender_email'] = self.sender_email_var.get()
+                config_data['jersey_default_to_email'] = self.recipient_email_var.get()
             
             # Update rate limiting settings
             if 'rate_limiting' not in config_data:
