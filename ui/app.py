@@ -64,7 +64,7 @@ class RegistrarApp:
             "Dashboard": DashboardView(self.content_area, self.config, self.order_verification),
             "Single (Order)": OrdersView(self.content_area, self.config, self.order_verification, on_order_select=self.show_email_view),
             "Batch (Orders)": BatchOrdersView(self.content_area, self.config, self.order_verification),
-            "Import (USA)": UsaImportView(self.content_area, self.config),
+            "Import (USA)": UsaImportView(self.content_area, self.config, on_navigate=self.show_view),
             "Master (USA)": UsaMasterView(self.content_area, self.config),
             "Email": EmailView(self.content_area, self.config, self.order_verification),
             "Configuration": ConfigurationView(self.content_area, self.config),
@@ -92,7 +92,7 @@ class RegistrarApp:
             self.status_var.set(f"Viewing: {view_name}")
             
             # Refresh data when switching to views that display order information
-            if view_name in ["Dashboard", "Single (Order)", "Batch (Orders)"] and hasattr(view, 'refresh'):
+            if view_name in ["Dashboard", "Single (Order)", "Batch (Orders)", "Master (USA)"] and hasattr(view, 'refresh'):
                 view.refresh()
 
     def show_email_view(self, order=None):
