@@ -5,12 +5,169 @@ from tkinter import messagebox, filedialog
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
+import json
 
 from workflow.usa_hockey import MasterReportsWorkflow
 from workflow.usa_hockey.data_processor import DataProcessor
 from config.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+
+class ColumnSettingsDialog:
+    """Modal dialog for managing column visibility settings."""
+    
+    def __init__(self, parent, columns, visible_columns):
+        self.parent = parent
+        self.columns = columns
+        self.visible_columns = visible_columns.copy()
+        self.result = None
+        
+        # Create modal dialog
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("Column Visibility Settings")
+        self.dialog.geometry("400x500")
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+        
+        # Center the dialog
+        self.dialog.update_idletasks()
+        x = (self.dialog.winfo_screenwidth() // 2) - (400 // 2)
+        y = (self.dialog.winfo_screenheight() // 2) - (500 // 2)
+        self.dialog.geometry(f"400x500+{x}+{y}")
+        
+        self.build_ui()
+        
+        # Wait for dialog to close
+        self.dialog.wait_window()
+    
+    def build_ui(self):
+        """Build the dialog UI."""
+        # Header
+        header_label = ttk.Label(
+            self.dialog,
+            text="Select columns to display in the table",
+            font=("Helvetica", 12, "bold")
+        )
+        header_label.pack(pady=(20, 10))
+        
+        # Description
+        desc_label = ttk.Label(
+            self.dialog,
+            text="Check/uncheck columns to show/hide them in the records table",
+            font=("Helvetica", 9)
+        )
+        desc_label.pack(pady=(0, 20))
+        
+        # Main content frame
+        content_frame = ttk.Frame(self.dialog)
+        content_frame.pack(fill=BOTH, expand=True, padx=20, pady=10)
+        
+        # Create scrollable frame for checkboxes
+        canvas = tk.Canvas(content_frame)
+        scrollbar = ttk.Scrollbar(content_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Create checkboxes for each column
+        self.checkbox_vars = {}
+        for col in self.columns:
+            var = tk.BooleanVar(value=col in self.visible_columns)
+            self.checkbox_vars[col] = var
+            
+            checkbox = ttk.Checkbutton(
+                scrollable_frame,
+                text=col,
+                variable=var,
+                command=self.update_visible_columns
+            )
+            checkbox.pack(anchor="w", pady=2)
+        
+        # Pack canvas and scrollbar
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Buttons frame
+        buttons_frame = ttk.Frame(self.dialog)
+        buttons_frame.pack(fill=X, padx=20, pady=20)
+        
+        # Select All button
+        select_all_btn = ttk.Button(
+            buttons_frame,
+            text="Select All",
+            command=self.select_all,
+            style="secondary.TButton"
+        )
+        select_all_btn.pack(side=LEFT, padx=(0, 10))
+        
+        # Deselect All button
+        deselect_all_btn = ttk.Button(
+            buttons_frame,
+            text="Deselect All",
+            command=self.deselect_all,
+            style="secondary.TButton"
+        )
+        deselect_all_btn.pack(side=LEFT, padx=(0, 10))
+        
+        # Spacer
+        ttk.Frame(buttons_frame).pack(side=LEFT, fill=X, expand=True)
+        
+        # OK button
+        ok_btn = ttk.Button(
+            buttons_frame,
+            text="OK",
+            command=self.ok_clicked,
+            style="primary.TButton"
+        )
+        ok_btn.pack(side=RIGHT, padx=(10, 0))
+        
+        # Cancel button
+        cancel_btn = ttk.Button(
+            buttons_frame,
+            text="Cancel",
+            command=self.cancel_clicked,
+            style="secondary.TButton"
+        )
+        cancel_btn.pack(side=RIGHT)
+        
+        # Bind Enter key to OK
+        self.dialog.bind("<Return>", lambda e: self.ok_clicked())
+        self.dialog.bind("<Escape>", lambda e: self.cancel_clicked())
+        
+        # Focus on dialog
+        self.dialog.focus_set()
+    
+    def update_visible_columns(self):
+        """Update the visible columns based on checkbox states."""
+        self.visible_columns = [col for col, var in self.checkbox_vars.items() if var.get()]
+    
+    def select_all(self):
+        """Select all columns."""
+        for var in self.checkbox_vars.values():
+            var.set(True)
+        self.update_visible_columns()
+    
+    def deselect_all(self):
+        """Deselect all columns."""
+        for var in self.checkbox_vars.values():
+            var.set(False)
+        self.update_visible_columns()
+    
+    def ok_clicked(self):
+        """Handle OK button click."""
+        self.result = self.visible_columns
+        self.dialog.destroy()
+    
+    def cancel_clicked(self):
+        """Handle Cancel button click."""
+        self.dialog.destroy()
 
 
 class UsaMasterView(ttk.Frame):
@@ -22,6 +179,7 @@ class UsaMasterView(ttk.Frame):
         self.current_data = None
         self.filtered_data = None
         self.current_file_path = None
+        self.visible_columns = None
         self.build_ui()
 
     def build_ui(self):
@@ -58,14 +216,28 @@ class UsaMasterView(ttk.Frame):
         )
         self.data_status_label.pack(side=LEFT)
 
+        # Right side frame for record count and settings
+        right_frame = ttk.Frame(self.data_status_frame)
+        right_frame.pack(side=RIGHT)
+
         # Record count label
         self.record_count_var = tk.StringVar(value="")
         self.record_count_label = ttk.Label(
-            self.data_status_frame,
+            right_frame,
             textvariable=self.record_count_var,
             font=("Helvetica", 9)
         )
-        self.record_count_label.pack(side=RIGHT)
+        self.record_count_label.pack(side=LEFT, padx=(0, 10))
+
+        # Settings icon button
+        self.settings_btn = ttk.Button(
+            right_frame,
+            text="⚙",
+            command=self.show_column_settings,
+            style="secondary.TButton",
+            width=3
+        )
+        self.settings_btn.pack(side=LEFT)
 
         # Filters frame
         filters_frame = ttk.LabelFrame(content_frame, text="Pre-built Filters", padding=10)
@@ -211,6 +383,93 @@ class UsaMasterView(ttk.Frame):
         # Bind double-click event for row details
         self.tree.bind("<Double-1>", self.show_row_details)
 
+    def load_column_visibility_preferences(self):
+        """Load column visibility preferences from preferences.yaml."""
+        try:
+            current_dir = Path(__file__).parent.parent.parent / 'config'
+            preferences_path = current_dir / 'preferences.yaml'
+            
+            if preferences_path.exists():
+                from ruamel.yaml import YAML
+                yaml = YAML(typ='safe')
+                with open(preferences_path) as f:
+                    preferences = yaml.load(f) or {}
+                
+                return preferences.get('usa_master_column_visibility', {})
+        except Exception as e:
+            logger.warning(f"Failed to load column visibility preferences: {e}")
+        
+        return {}
+    
+    def save_column_visibility_preferences(self, column_visibility):
+        """Save column visibility preferences to preferences.yaml."""
+        try:
+            current_dir = Path(__file__).parent.parent.parent / 'config'
+            preferences_path = current_dir / 'preferences.yaml'
+            
+            # Load existing preferences
+            preferences = {}
+            if preferences_path.exists():
+                from ruamel.yaml import YAML
+                yaml = YAML(typ='safe')
+                with open(preferences_path) as f:
+                    preferences = yaml.load(f) or {}
+            
+            # Update column visibility preferences
+            preferences['usa_master_column_visibility'] = column_visibility
+            
+            # Save updated preferences
+            yaml = YAML(typ='safe')
+            with open(preferences_path, 'w') as f:
+                yaml.dump(preferences, f)
+            
+            logger.info("Column visibility preferences saved successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to save column visibility preferences: {e}")
+            messagebox.showerror("Error", f"Failed to save column visibility preferences: {str(e)}")
+
+    def show_column_settings(self):
+        """Show the column visibility settings dialog."""
+        if self.current_data is None or self.current_data.empty:
+            messagebox.showwarning("Warning", "No data loaded. Please load data first.")
+            return
+        
+        # Get current columns
+        all_columns = list(self.current_data.columns)
+        
+        # Load saved preferences
+        saved_preferences = self.load_column_visibility_preferences()
+        
+        # Determine visible columns (use saved preferences or all columns if none saved)
+        if saved_preferences:
+            # Use saved preferences, but ensure all current columns are included
+            visible_columns = []
+            for col in all_columns:
+                if col in saved_preferences:
+                    if saved_preferences[col]:
+                        visible_columns.append(col)
+                else:
+                    # New column, show by default
+                    visible_columns.append(col)
+        else:
+            # No saved preferences, show all columns
+            visible_columns = all_columns.copy()
+        
+        # Show dialog
+        dialog = ColumnSettingsDialog(self, all_columns, visible_columns)
+        
+        if dialog.result is not None:
+            # Save preferences
+            column_visibility = {col: col in dialog.result for col in all_columns}
+            self.save_column_visibility_preferences(column_visibility)
+            
+            # Update visible columns
+            self.visible_columns = dialog.result
+            
+            # Refresh the display
+            self.update_display_with_filtered_data()
+
     def load_data(self):
         """Load data from the import view or from a file."""
         # First try to get data from config (set by import view)
@@ -258,6 +517,23 @@ class UsaMasterView(ttk.Frame):
         # Set filtered data to current data initially
         self.filtered_data = self.current_data.copy()
         
+        # Load column visibility preferences
+        saved_preferences = self.load_column_visibility_preferences()
+        if saved_preferences:
+            # Apply saved preferences
+            visible_columns = []
+            for col in self.current_data.columns:
+                if col in saved_preferences:
+                    if saved_preferences[col]:
+                        visible_columns.append(col)
+                else:
+                    # New column, show by default
+                    visible_columns.append(col)
+            self.visible_columns = visible_columns
+        else:
+            # No saved preferences, show all columns
+            self.visible_columns = list(self.current_data.columns)
+        
         # Update the display with the data
         self.update_display_with_filtered_data()
 
@@ -270,23 +546,39 @@ class UsaMasterView(ttk.Frame):
         for item in self.tree.get_children():
             self.tree.delete(item)
 
+        # Determine which columns to show
+        if self.visible_columns is None:
+            # No visibility preferences set, show all columns
+            display_columns = list(self.filtered_data.columns)
+        else:
+            # Use visibility preferences
+            display_columns = [col for col in self.filtered_data.columns if col in self.visible_columns]
+
         # Set up columns
-        columns = list(self.filtered_data.columns)
-        self.tree["columns"] = columns
+        self.tree["columns"] = display_columns
         
         # Configure column headings
-        for col in columns:
+        for col in display_columns:
             self.tree.heading(col, text=col, command=lambda c=col: self.sort_by_column(c))
             # Set reasonable column widths
             max_width = max(len(str(col)), 
                           self.filtered_data[col].astype(str).str.len().max() if not self.filtered_data[col].empty else 0)
             width = min(max_width * 10, 300)  # Cap at 300 pixels
-            self.tree.column(col, width=width, minwidth=50)
+            self.tree.column(col, width=width, minwidth=50, anchor="center")
 
         # Populate with data (limit to first 1000 rows for performance)
         display_data = self.filtered_data.head(1000)
         for idx, row in display_data.iterrows():
-            values = [str(row[col]) if pd.notna(row[col]) else "" for col in columns]
+            values = []
+            for col in display_columns:
+                value = row[col]
+                # Check for various forms of NaN/null values
+                if (pd.isna(value) or 
+                    str(value).lower() in ['nan', 'none', 'null', ''] or
+                    str(value).strip() == ''):
+                    values.append("")
+                else:
+                    values.append(str(value))
             self.tree.insert("", "end", values=values, tags=(idx,))
 
         # Update status
@@ -307,10 +599,10 @@ class UsaMasterView(ttk.Frame):
         # Enable export button
         self.export_filtered_btn.config(state="normal")
         
-        # Update column selector
-        self.column_combo['values'] = columns
-        if columns:
-            self.column_combo.set(columns[0])
+        # Update column selector (only show visible columns)
+        self.column_combo['values'] = display_columns
+        if display_columns:
+            self.column_combo.set(display_columns[0])
 
     def sort_by_column(self, column):
         """Sort the table by a column."""
@@ -327,7 +619,7 @@ class UsaMasterView(ttk.Frame):
         self.filtered_data = self.filtered_data.sort_values(by=column, ascending=not self._sort_reverse)
         
         # Re-populate the table
-        self.populate_table()
+        self.update_display_with_filtered_data()
 
     def apply_filter(self, filter_type):
         """Apply pre-built filters."""
@@ -407,8 +699,6 @@ class UsaMasterView(ttk.Frame):
             self.update_display_with_filtered_data()
             self.filter_value_var.set("")
 
-
-
     def show_row_details(self, event):
         """Show detailed information for a selected row."""
         selection = self.tree.selection()
@@ -463,11 +753,17 @@ class UsaMasterView(ttk.Frame):
             try:
                 output_path = Path(file_path)
                 
+                # Apply column visibility to export data
+                if self.visible_columns is not None:
+                    export_data = self.filtered_data[self.visible_columns]
+                else:
+                    export_data = self.filtered_data
+                
                 if output_path.suffix.lower() == '.xlsx':
-                    success = self.workflow.export_to_excel(self.filtered_data, output_path)
+                    success = self.workflow.export_to_excel(export_data, output_path)
                 else:
                     # Export as CSV
-                    self.filtered_data.to_csv(output_path, index=False)
+                    export_data.to_csv(output_path, index=False)
                     success = True
                 
                 if success:

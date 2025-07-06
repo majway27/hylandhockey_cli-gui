@@ -9,4 +9,16 @@ test_mode: true
 # Batch order size preference
 # Number of orders to process in a batch (default: 1)
 # This setting is automatically saved when changed in the Batch Orders view
-batch_order_size: 1 
+batch_order_size: 1
+
+# USA Hockey Master Registration column visibility preferences
+# Controls which columns are displayed in the USA Master view table
+# Each column name maps to a boolean value (true = visible, false = hidden)
+# This setting is automatically saved when changed in the USA Master view settings
+usa_master_column_visibility:
+  # Example column visibility settings:
+  # "Player Name": true
+  # "Registration Date": true
+  # "Status": true
+  # "Email": false
+  # "Phone": false 
