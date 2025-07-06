@@ -8,6 +8,8 @@ from ui.views.batch_orders import BatchOrdersView
 from ui.views.email import EmailView
 from ui.views.configuration import ConfigurationView
 from ui.views.logs import LogsView
+from ui.views.sync import SyncView
+from ui.views.master import MasterView
 
 class RegistrarApp:
     def __init__(self, config, order_verification, log_viewer):
@@ -17,7 +19,7 @@ class RegistrarApp:
         self.root = ttk.Window(
             title=f"Registrar Operations Center: {self.config.organization_name}",
             themename="united",
-            size=(1500, 1000),
+            size=(1800, 1200),
             resizable=(True, True)
         )
         self.status_var = tk.StringVar(value="Ready")
@@ -62,6 +64,8 @@ class RegistrarApp:
             "Dashboard": DashboardView(self.content_area, self.config, self.order_verification),
             "Single (Order)": OrdersView(self.content_area, self.config, self.order_verification, on_order_select=self.show_email_view),
             "Batch (Orders)": BatchOrdersView(self.content_area, self.config, self.order_verification),
+            "Sync": SyncView(self.content_area, self.config),
+            "Master": MasterView(self.content_area, self.config),
             "Email": EmailView(self.content_area, self.config, self.order_verification),
             "Configuration": ConfigurationView(self.content_area, self.config),
             "Logs": LogsView(self.content_area, self.log_viewer),
