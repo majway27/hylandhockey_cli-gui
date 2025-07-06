@@ -8,8 +8,8 @@ from ui.views.batch_orders import BatchOrdersView
 from ui.views.email import EmailView
 from ui.views.configuration import ConfigurationView
 from ui.views.logs import LogsView
-from ui.views.sync import SyncView
-from ui.views.master import MasterView
+from ui.views.usa_import import UsaImportView
+from ui.views.usa_master import UsaMasterView
 
 class RegistrarApp:
     def __init__(self, config, order_verification, log_viewer):
@@ -64,8 +64,8 @@ class RegistrarApp:
             "Dashboard": DashboardView(self.content_area, self.config, self.order_verification),
             "Single (Order)": OrdersView(self.content_area, self.config, self.order_verification, on_order_select=self.show_email_view),
             "Batch (Orders)": BatchOrdersView(self.content_area, self.config, self.order_verification),
-            "Sync": SyncView(self.content_area, self.config),
-            "Master": MasterView(self.content_area, self.config),
+            "Import (USA)": UsaImportView(self.content_area, self.config),
+            "Master (USA)": UsaMasterView(self.content_area, self.config),
             "Email": EmailView(self.content_area, self.config, self.order_verification),
             "Configuration": ConfigurationView(self.content_area, self.config),
             "Logs": LogsView(self.content_area, self.log_viewer),

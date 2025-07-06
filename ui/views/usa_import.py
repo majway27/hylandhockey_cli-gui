@@ -2,7 +2,7 @@ import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 import tkinter as tk
 
-class MasterView(ttk.Frame):
+class UsaImportView(ttk.Frame):
     def __init__(self, master, config, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
         self.config = config
@@ -12,7 +12,7 @@ class MasterView(ttk.Frame):
         # Header
         header_label = ttk.Label(
             self,
-            text="USA Hockey Master Registration",
+            text="USA Hockey Data Synchronization",
             font=("Helvetica", 14, "bold")
         )
         header_label.pack(pady=(20, 10))
@@ -20,19 +20,19 @@ class MasterView(ttk.Frame):
         # Description
         desc_label = ttk.Label(
             self,
-            text="Manage and view master registration reports from USA Hockey",
+            text="Synchronize registration data with USA Hockey systems",
             font=("Helvetica", 10)
         )
         desc_label.pack(pady=(0, 20))
 
         # Main content frame
-        content_frame = ttk.LabelFrame(self, text="Master Registration Data", padding=20)
+        content_frame = ttk.LabelFrame(self, text="Sync Operations", padding=20)
         content_frame.pack(fill=BOTH, expand=True, padx=20, pady=10)
 
         # Placeholder content
         placeholder_label = ttk.Label(
             content_frame,
-            text="Master registration functionality coming soon...",
+            text="Sync functionality coming soon...",
             font=("Helvetica", 12),
             foreground="gray"
         )
@@ -42,25 +42,15 @@ class MasterView(ttk.Frame):
         actions_frame = ttk.Frame(content_frame)
         actions_frame.pack(side=BOTTOM, fill=X, pady=(20, 0))
 
-        # Load Master Data button (placeholder)
-        load_btn = ttk.Button(
+        # Sync button (placeholder)
+        sync_btn = ttk.Button(
             actions_frame,
-            text="Load Master Data",
-            command=self.load_master_data,
+            text="Sync Data",
+            command=self.sync_data,
             style="primary.TButton",
             state="disabled"
         )
-        load_btn.pack(side=LEFT, padx=(0, 10))
-
-        # Export button (placeholder)
-        export_btn = ttk.Button(
-            actions_frame,
-            text="Export Data",
-            command=self.export_data,
-            style="secondary.TButton",
-            state="disabled"
-        )
-        export_btn.pack(side=LEFT, padx=(0, 10))
+        sync_btn.pack(side=LEFT, padx=(0, 10))
 
         # Refresh button
         refresh_btn = ttk.Button(
@@ -71,12 +61,8 @@ class MasterView(ttk.Frame):
         )
         refresh_btn.pack(side=LEFT)
 
-    def load_master_data(self):
-        """Placeholder for loading master data functionality"""
-        pass
-
-    def export_data(self):
-        """Placeholder for export functionality"""
+    def sync_data(self):
+        """Placeholder for sync functionality"""
         pass
 
     def refresh(self):

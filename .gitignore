@@ -4,7 +4,16 @@ config/credentials*
 config/token*
 config/preferences.yaml
 config/email_signature.html
+config/playwright_config.py
 tests/token*
+
+# Environment variables
+.env
+
+# Screenshots and debug files
+*.png
+*.jpg
+*.jpeg
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

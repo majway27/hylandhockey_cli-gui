@@ -19,7 +19,7 @@ class NavigationPanel(ttk.Frame):
         menu_items = [
             ("Home", ["Dashboard"]),
             ("Jersey", ["Single (Order)", "Batch (Orders)"]),
-            ("USA Hockey", ["Sync", "Master"]),
+            ("USA Hockey", ["Import (USA)", "Master (USA)"]),
             ("Utility", ["Configuration", "Logs"]),
         ]
         for section, subitems in menu_items:
