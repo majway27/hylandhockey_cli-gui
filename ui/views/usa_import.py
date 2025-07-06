@@ -5,7 +5,7 @@ from tkinter import messagebox, filedialog
 import asyncio
 import threading
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 
 from workflow.usa_hockey import MasterReportsWorkflow
@@ -97,18 +97,8 @@ class UsaImportView(ttk.Frame):
         check_creds_btn.pack(anchor=W, pady=(5, 0))
 
         # Data info frame
-        self.data_info_frame = ttk.LabelFrame(top_panels_frame, text="Report Metadata", padding=10)
+        self.data_info_frame = ttk.LabelFrame(top_panels_frame, text="Generate", padding=10)
         self.data_info_frame.pack(side=LEFT, fill=BOTH, expand=True, padx=(10, 0))
-
-        # Data info text
-        self.data_info_var = tk.StringVar(value="No data downloaded")
-        self.data_info_label = ttk.Label(
-            self.data_info_frame,
-            textvariable=self.data_info_var,
-            font=("Consolas", 9),
-            justify=tk.LEFT
-        )
-        self.data_info_label.pack(anchor=W)
 
         # Download button
         self.download_btn = ttk.Button(
@@ -128,20 +118,26 @@ class UsaImportView(ttk.Frame):
         files_list_frame.pack(fill=BOTH, expand=True)
 
         # Create Treeview for files
-        columns = ("filename", "size", "modified", "status")
+        columns = ("age", "status", "filename", "size", "modified")
         self.files_tree = ttk.Treeview(files_list_frame, columns=columns, show="headings", height=6)
         
+        # Create custom style for Treeview headers
+        style = ttk.Style()
+        style.configure("Treeview.Heading", background="#495057", foreground="white", font=("Helvetica", 9, "bold"))
+        
         # Configure columns
+        self.files_tree.heading("age", text="Age")
+        self.files_tree.heading("status", text="Status")
         self.files_tree.heading("filename", text="Filename")
         self.files_tree.heading("size", text="Size")
         self.files_tree.heading("modified", text="Modified")
-        self.files_tree.heading("status", text="Status")
         
         # Configure column widths
-        self.files_tree.column("filename", width=300, anchor=W)
-        self.files_tree.column("size", width=100, anchor=E)
-        self.files_tree.column("modified", width=150, anchor=W)
-        self.files_tree.column("status", width=100, anchor=W)
+        self.files_tree.column("age", width=80, anchor="center")
+        self.files_tree.column("status", width=100, anchor="center")
+        self.files_tree.column("filename", width=300, anchor="center")
+        self.files_tree.column("size", width=100, anchor="center")
+        self.files_tree.column("modified", width=150, anchor="center")
 
         # Add scrollbar
         files_scrollbar = ttk.Scrollbar(files_list_frame, orient=VERTICAL, command=self.files_tree.yview)
@@ -234,12 +230,16 @@ class UsaImportView(ttk.Frame):
             else:
                 status = "Available"
             
+            # Calculate age
+            age_str = self.format_file_age(file_info['modified'])
+            
             # Insert into tree
             self.files_tree.insert("", "end", values=(
+                age_str,
+                status,
                 file_info['name'],
                 file_info['size_formatted'],
-                file_info['modified_str'],
-                status
+                file_info['modified_str']
             ), tags=(file_info['path'],))
 
     def on_file_selection_change(self, event):
@@ -300,7 +300,7 @@ class UsaImportView(ttk.Frame):
                 if self.current_file_path and Path(file_path) == self.current_file_path:
                     self.current_data = None
                     self.current_file_path = None
-                    self.data_info_var.set("No data downloaded")
+                    #self.data_info_var.set("No data downloaded")
                     self.loaded_file_var.set("No file loaded")
                     self.view_data_btn.config(state="disabled")
             else:
@@ -384,7 +384,46 @@ class UsaImportView(ttk.Frame):
         self.progress_var.set(0)
         messagebox.showerror("Download Error", f"Failed to download master report:\n{error_message}")
 
-
+    def format_file_age(self, modified_time: datetime) -> str:
+        """
+        Format file age in human-friendly hours-minutes format.
+        
+        Args:
+            modified_time: File modification time
+            
+        Returns:
+            Formatted age string (e.g., "2h 30m", "45m", "1d 3h")
+        """
+        if not modified_time:
+            return "Unknown"
+        
+        now = datetime.now()
+        age_delta = now - modified_time
+        
+        # Convert to total minutes
+        total_minutes = int(age_delta.total_seconds() / 60)
+        
+        if total_minutes < 60:
+            return f"{total_minutes}m"
+        elif total_minutes < 1440:  # Less than 24 hours
+            hours = total_minutes // 60
+            minutes = total_minutes % 60
+            if minutes == 0:
+                return f"{hours}h"
+            else:
+                return f"{hours}h {minutes}m"
+        else:  # 24 hours or more
+            days = total_minutes // 1440
+            remaining_minutes = total_minutes % 1440
+            hours = remaining_minutes // 60
+            minutes = remaining_minutes % 60
+            
+            if hours == 0 and minutes == 0:
+                return f"{days}d"
+            elif minutes == 0:
+                return f"{days}d {hours}h"
+            else:
+                return f"{days}d {hours}h {minutes}m"
 
     def load_and_display_data(self, file_path: Path):
         """Load and display the master report data."""
@@ -400,17 +439,13 @@ class UsaImportView(ttk.Frame):
                 
                 # Generate summary
                 summary = self.workflow.get_report_summary(df)
-                
-                # Update data info
-                info_text = f"File: {file_path.name}\n"
-                info_text += f"Records: {summary['total_records']:,}\n"
-                info_text += f"Columns: {summary['column_count']}\n"
-                info_text += f"Last modified: {datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d %H:%M:%S')}"
-                
-                self.data_info_var.set(info_text)
-                
+                                
                 # Update loaded file info
-                self.loaded_file_var.set(f"Currently loaded: {file_path.name}")
+                loaded_file_text = f"Currently loaded: {file_path.name}\n"
+                loaded_file_text += f"Records: {summary['total_records']:,}\n"
+                loaded_file_text += f"Columns: {summary['column_count']}"
+                
+                self.loaded_file_var.set(loaded_file_text)
                 
                 # Enable view button
                 self.view_data_btn.config(state="normal")
@@ -484,8 +519,6 @@ class UsaImportView(ttk.Frame):
         else:
             messagebox.showwarning("Warning", "No data to view")
 
-
-
     def refresh(self):
         """Refresh the view and check for updates."""
         self.check_credentials()
@@ -497,7 +530,7 @@ class UsaImportView(ttk.Frame):
         if self.current_file_path and self.current_file_path.exists():
             self.load_and_display_data(self.current_file_path)
         else:
-            self.data_info_var.set("No data downloaded")
+            #self.data_info_var.set("No data downloaded")
             self.loaded_file_var.set("No file loaded")
             self.view_data_btn.config(state="disabled")
         
