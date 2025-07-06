@@ -33,6 +33,66 @@ jersey_sender_email_test: "your-email@example.com"
 jersey_default_to_email: "recipient@example.com"
 jersey_default_to_email_test: "recipient@example.com"
 
+# USA Hockey settings
+usa_hockey:
+  # Authentication - Add your USA Hockey credentials here
+  username: "your_usa_hockey_username"
+  password: "your_usa_hockey_password"
+  
+  # Portal URLs
+  login_url: "https://portal.usahockey.com/tool/login"
+  base_url: "https://portal.usahockey.com"
+  reports_url: "https://portal.usahockey.com/tool/reports"
+  master_report_url: "https://portal.usahockey.com/tool/reports/master_registration.csv"
+  
+  # Association settings
+  association:
+    primary_selector: "a[onclick*='select_association']"
+    alternative_selectors:
+      - "a:has-text('NICE ICE HOCKEY ASSOCIATION')"
+      - "li a:has-text('AAA0000')"
+      - ".registry_association a"
+      - "ul li a"
+    target_association:
+      code: "AAA0000"
+      name: "NICE ICE HOCKEY ASSOCIATION"
+    page_load_timeout: 30000
+    take_screenshots: false
+  
+  # Season settings
+  season:
+    selectors:
+      season_list: "#season-select"
+      season_link: "#season-select li a"
+      season_link_pattern: "a[onclick*='check_waiver']"
+    selection_strategy: "latest"  # latest, specific, manual
+    specific_season: null  # e.g., "20242025" for 2024-2025 season
+    take_screenshots: false
+    page_load_timeout: 30000
+  
+  # Browser settings
+  browser:
+    headless: true
+    browser_type: "chromium"
+    viewport:
+      width: 1280
+      height: 720
+  
+  # Download settings
+  download:
+    directory: "downloads/usa_hockey"
+    filename_pattern: "master_registration_{timestamp}.csv"
+    timeout: 300000  # 5 minutes
+    
+  # Rate limiting
+  rate_limiting:
+    page_load_timeout: 300000  # 5 minutes
+    download_timeout: 300000   # 5 minutes
+    retry_attempts: 3
+    base_delay: 1.0
+    max_delay: 60.0
+    use_exponential_backoff: true
+
 # Rate limiting settings
 rate_limiting:
   # Maximum number of retries for API calls

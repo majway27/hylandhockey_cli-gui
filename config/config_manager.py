@@ -8,6 +8,7 @@ from pathlib import Path
 from ruamel.yaml import YAML
 from typing import Any, Dict, List, Optional
 from .logging_config import get_logger
+from .usa_hockey_config import USAHockeyConfig
 
 logger = get_logger(__name__)
 
@@ -288,4 +289,16 @@ class ConfigManager:
             logger.info(f"Configuration saved successfully to {config_path}")
         except Exception as e:
             logger.error(f"Failed to save configuration to {config_path}: {e}", exc_info=True)
-            raise 
+            raise
+    
+    # Rate limiting
+    @property
+    def rate_limiting(self) -> Dict[str, Any]:
+        """Get rate limiting configuration."""
+        return self._config.get('rate_limiting', {})
+    
+    # USA Hockey
+    @property
+    def usa_hockey(self) -> USAHockeyConfig:
+        """Get USA Hockey configuration."""
+        return USAHockeyConfig(self._config) 

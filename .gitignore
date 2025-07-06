@@ -4,11 +4,9 @@ config/credentials*
 config/token*
 config/preferences.yaml
 config/email_signature.html
-config/playwright_config.py
 tests/token*
 
-# Environment variables
-.env
+downloads/
 
 # Screenshots and debug files
 *.png
