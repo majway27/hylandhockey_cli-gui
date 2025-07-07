@@ -18,8 +18,7 @@ A modern GUI application for managing hockey jersey orders using Google Sheets a
 3. Activate the virtual environment: `source venv/bin/activate`
 4. Install dependencies: `pip install -r requirements.txt`
 5. Install Playwright Browsers `playwright install`
-6. Create a `playwright_config.py` (copy `playwright_config_template.py`) and adjust accordingly.
-7. Configure Credentials USA Hockey Import.  Create and fill in a `.env` file (copy `.env.template`) in the config folder with your USA Hockey credentials.
+6. Create and configure config/config.yaml based off of config.yaml.template
 
 ## Configuration
 
