@@ -247,14 +247,24 @@ class USAHockeyAuth:
             
             # Click the association link
             logger.info("Clicking association link...")
-            try:
-                # Try to wait for navigation
-                async with self._page.expect_navigation(wait_until="networkidle", timeout=30000):
-                    await association_link.click()
-            except Exception:
-                # If no navigation, wait for a likely new element
-                logger.info("No full navigation detected, waiting for a new page element...")
-                await self._page.wait_for_timeout(2000)
+            
+            if self.config.skip_association_navigation_wait:
+                # Skip navigation wait entirely and just click
+                logger.info("Skipping navigation wait as configured...")
+                await association_link.click()
+                await self._page.wait_for_timeout(500)  # Minimal wait for any DOM updates
+            else:
+                # Use a much shorter timeout since there's typically no full navigation
+                navigation_timeout = min(self.config.association_timeout, 5000)  # Cap at 5 seconds
+                
+                try:
+                    # Try to wait for navigation with shorter timeout
+                    async with self._page.expect_navigation(wait_until="networkidle", timeout=navigation_timeout):
+                        await association_link.click()
+                except Exception:
+                    # If no navigation, just wait a short time for any DOM updates
+                    logger.info("No full navigation detected, waiting for DOM updates...")
+                    await self._page.wait_for_timeout(1000)  # Reduced from 2000ms to 1000ms
             
             # Wait for the page to load after association selection
             await self._page.wait_for_load_state("networkidle")
@@ -363,14 +373,18 @@ class USAHockeyAuth:
             
             # Click the selected season
             logger.info("Clicking season link...")
+            
+            # Use a shorter timeout for season selection as well
+            season_timeout = min(self.config.season_config.get('page_load_timeout', 10000), 10000)  # Cap at 10 seconds
+            
             try:
-                # Try to wait for navigation
-                async with self._page.expect_navigation(wait_until="networkidle", timeout=30000):
+                # Try to wait for navigation with shorter timeout
+                async with self._page.expect_navigation(wait_until="networkidle", timeout=season_timeout):
                     await selected_season["element"].click()
             except Exception:
-                # If no navigation, wait for a likely new element
-                logger.info("No full navigation detected, waiting for a new page element...")
-                await self._page.wait_for_timeout(3000)
+                # If no navigation, just wait a short time for any DOM updates
+                logger.info("No full navigation detected, waiting for DOM updates...")
+                await self._page.wait_for_timeout(1500)  # Reduced from 3000ms to 1500ms
             
             # Wait for the page to load after season selection
             await self._page.wait_for_load_state("networkidle")

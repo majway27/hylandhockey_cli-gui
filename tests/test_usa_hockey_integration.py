@@ -99,6 +99,43 @@ def test_workflow_components():
         return False
 
 
+def test_custom_report_functionality():
+    """Test custom report functionality."""
+    print("\n=== Testing Custom Report Functionality ===\n")
+    
+    try:
+        # Initialize config
+        config = ConfigManager(test=True)
+        usa_config = config.usa_hockey
+        
+        # Test workflow initialization
+        from workflow.usa_hockey.custom_reports import CustomReportsWorkflow
+        workflow = CustomReportsWorkflow(usa_config)
+        print("✅ CustomReportsWorkflow initialized")
+        
+        # Test available fields
+        fields = workflow.get_available_fields()
+        print(f"✅ Available fields: {len(fields)} fields")
+        print(f"Sample fields: {fields[:5]}")
+        
+        # Test predefined reports
+        predefined = workflow.get_predefined_reports()
+        print(f"✅ Predefined reports: {len(predefined)} templates")
+        for key, report in predefined.items():
+            print(f"  - {report['name']}: {len(report['fields'])} fields")
+        
+        # Test custom report configuration
+        custom_url = usa_config.custom_report_url
+        print(f"✅ Custom report URL: {custom_url}")
+        
+        print("\n✅ Custom report functionality test completed successfully!")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Custom report functionality test failed: {e}")
+        return False
+
+
 def test_ui_components():
     """Test UI components (without actually creating the GUI)."""
     print("\n=== Testing UI Components ===\n")
@@ -128,6 +165,7 @@ def main():
     # Run tests
     config_success = test_configuration()
     workflow_success = test_workflow_components()
+    custom_report_success = test_custom_report_functionality()
     ui_success = test_ui_components()
     
     # Summary
@@ -135,9 +173,10 @@ def main():
     print("📊 Test Results Summary:")
     print(f"Configuration: {'✅ PASS' if config_success else '❌ FAIL'}")
     print(f"Workflow Components: {'✅ PASS' if workflow_success else '❌ FAIL'}")
+    print(f"Custom Report Functionality: {'✅ PASS' if custom_report_success else '❌ FAIL'}")
     print(f"UI Components: {'✅ PASS' if ui_success else '❌ FAIL'}")
     
-    all_passed = config_success and workflow_success and ui_success
+    all_passed = config_success and workflow_success and custom_report_success and ui_success
     
     if all_passed:
         print("\n🎉 All tests passed! USA Hockey integration is ready.")

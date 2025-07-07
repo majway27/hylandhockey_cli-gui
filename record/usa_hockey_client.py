@@ -199,6 +199,199 @@ class USAHockeyClient:
             logger.error(f"Error downloading master report: {e}")
             raise USAHockeyDownloadError(f"Download failed: {e}")
     
+    async def download_custom_report(
+        self, 
+        fields: List[str], 
+        filters: Optional[Dict[str, Any]] = None,
+        filename: Optional[str] = None,
+        format: str = "csv"
+    ) -> Optional[Path]:
+        """
+        Download custom report with specified fields and filters.
+        
+        Args:
+            fields: List of field names to include in the report
+            filters: Optional dictionary of filters to apply
+            filename: Optional custom filename for the download
+            format: Report format ('csv' or 'xls')
+            
+        Returns:
+            Optional[Path]: Path to downloaded file if successful, None otherwise
+        """
+        if not self.auth or not self.auth.is_authenticated:
+            raise USAHockeyClientError("Not authenticated. Call authenticate() first.")
+        
+        try:
+            # Ensure download directory exists
+            download_dir = self.config.ensure_download_directory()
+            
+            # Generate filename if not provided
+            if not filename:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"custom_report_{timestamp}.{format}"
+            
+            # Set the download path
+            download_path = download_dir / filename
+            
+            logger.info(f"Starting custom report download to: {download_path}")
+            
+            # Navigate to reports page
+            page = self.auth.page
+            if not page:
+                raise USAHockeyClientError("No page available")
+            
+            logger.info(f"Navigating to reports page: {self.config.reports_url}")
+            await page.goto(self.config.reports_url)
+            await page.wait_for_load_state("networkidle")
+            
+            # Take screenshot for debugging if enabled
+            if self.config.take_screenshots:
+                await page.screenshot(path="reports_page.png")
+                logger.info("Screenshot saved as reports_page.png")
+            
+            logger.info(f"Looking for download buttons for format: {format}")
+            logger.info(f"Fields: {fields}")
+            if filters:
+                logger.info(f"Filters: {filters}")
+            
+            # Look for existing saved reports that match our criteria
+            logger.info("Looking for existing saved reports...")
+            
+            # Wait for any saved reports to load
+            await page.wait_for_timeout(2000)
+            
+            # Take a screenshot to see what's on the page
+            if self.config.take_screenshots:
+                await page.screenshot(path="reports_page_after_load.png")
+                logger.info("Screenshot saved as reports_page_after_load.png")
+            
+            # Get page content for debugging
+            page_content = await page.content()
+            logger.info(f"Page content length: {len(page_content)}")
+            
+            # Look for saved reports that match our criteria
+            logger.info("Looking for saved reports that match our criteria...")
+            
+            # Get all saved report containers
+            saved_report_containers = await page.query_selector_all(".saved-report-container, .report-item, [class*='report']")
+            
+            if not saved_report_containers:
+                logger.warning("No saved report containers found")
+                # Try alternative selectors
+                saved_report_containers = await page.query_selector_all("[class*='saved'], [class*='report']")
+            
+            logger.info(f"Found {len(saved_report_containers)} saved report containers")
+            
+            # Look for a report that matches our fields and filters
+            matching_report = None
+            target_fields = set(fields)
+            target_filters = filters or {}
+            
+            for container in saved_report_containers:
+                # Get the fields for this report
+                fields_element = await container.query_selector(".saved-report-fields")
+                if fields_element:
+                    fields_text = await fields_element.text_content()
+                    if fields_text:
+                        report_fields = set([f.strip() for f in fields_text.split(',') if f.strip()])
+                        
+                        # Get the filters for this report
+                        filters_element = await container.query_selector(".saved-report-filters")
+                        report_filters = {}
+                        if filters_element:
+                            filters_text = await filters_element.text_content()
+                            if filters_text:
+                                # Parse filters like "State:eq,CO;"
+                                for filter_part in filters_text.split(';'):
+                                    if ':' in filter_part:
+                                        field, filter_value = filter_part.split(':', 1)
+                                        if ',' in filter_value:
+                                            filter_type, value = filter_value.split(',', 1)
+                                            report_filters[field.strip()] = {"type": filter_type.strip(), "value": value.strip()}
+                        
+                        # Check if this report matches our criteria
+                        if report_fields == target_fields and report_filters == target_filters:
+                            matching_report = container
+                            logger.info("✅ Found matching saved report!")
+                            break
+            
+            if not matching_report:
+                logger.warning("No matching saved report found. Need to create a new custom report.")
+                # For now, we'll try to create a new report
+                # This would require navigating to the custom report creation form
+                raise USAHockeyDownloadError("No matching custom report found. Report creation not yet implemented.")
+            
+            # Find the download button within the matching report
+            download_selector = "a.btn-download-csv" if format.lower() == "csv" else "a.btn-download-xls"
+            download_button = await matching_report.query_selector(download_selector)
+            
+            if not download_button:
+                logger.error("Download button not found in matching report")
+                raise USAHockeyDownloadError("Download button not found in matching report")
+            
+            logger.info("Found download button in matching report")
+            
+            # Set up download handling BEFORE clicking
+            async with page.expect_download(timeout=self.config.download_timeout) as download_info:
+                # Click the download button for the matching report
+                logger.info("Clicking download button for matching report...")
+                await download_button.click()
+                
+                # Wait for download
+                logger.info("Waiting for download to start...")
+                download = await download_info.value
+            
+            logger.info(f"Download started: {download.suggested_filename}")
+            
+            # Save the file
+            await download.save_as(download_path)
+            
+            logger.info(f"✅ Successfully downloaded custom report to: {download_path}")
+            
+            # Verify the file was downloaded and has content
+            if download_path.exists():
+                file_size = download_path.stat().st_size
+                logger.info(f"File size: {file_size} bytes")
+                
+                if file_size > 0:
+                    logger.info("✅ File downloaded successfully with content!")
+                    return download_path
+                else:
+                    logger.warning("⚠️ File downloaded but appears to be empty")
+                    return download_path
+            else:
+                logger.error("❌ File was not saved properly")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error downloading custom report: {e}")
+            raise USAHockeyDownloadError(f"Custom report download failed: {e}")
+    
+    def _format_filters(self, filters: Dict[str, Any]) -> str:
+        """
+        Format filters dictionary into the expected string format.
+        
+        Args:
+            filters: Dictionary of filters
+            
+        Returns:
+            Formatted filter string
+        """
+        if not filters:
+            return ""
+        
+        filter_parts = []
+        for field, filter_info in filters.items():
+            if isinstance(filter_info, dict):
+                filter_type = filter_info.get('type', 'eq')
+                filter_value = filter_info.get('value', '')
+                filter_parts.append(f"{field}:{filter_type},{filter_value}")
+            else:
+                # Simple string value
+                filter_parts.append(f"{field}:eq,{filter_info}")
+        
+        return ";".join(filter_parts)
+    
     async def get_available_seasons(self) -> List[Dict[str, Any]]:
         """
         Get list of available seasons.

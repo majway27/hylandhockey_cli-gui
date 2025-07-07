@@ -44,6 +44,7 @@ usa_hockey:
   base_url: "https://portal.usahockey.com"
   reports_url: "https://portal.usahockey.com/tool/reports"
   master_report_url: "https://portal.usahockey.com/tool/reports/master_registration.csv"
+  custom_report_url: "https://portal.usahockey.com/tool/reports/custom_report.csv"
   
   # Association settings
   association:
@@ -58,6 +59,7 @@ usa_hockey:
       name: "NICE ICE HOCKEY ASSOCIATION"
     page_load_timeout: 30000
     take_screenshots: false
+    skip_navigation_wait: false  # Set to true to skip navigation wait entirely
   
   # Season settings
   season:

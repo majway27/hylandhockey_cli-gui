@@ -8,6 +8,7 @@ A modern GUI application for managing hockey jersey orders using Google Sheets a
 - **Google Integration**: Seamless integration with Google Sheets and Gmail
 - **Order Management**: View, verify, and process jersey orders
 - **Email Automation**: Generate and send verification emails
+- **USA Hockey Integration**: Download master registration reports and run saved reports
 - **Test/Production Modes**: Separate configurations for testing and production use
 
 ## Installation
@@ -87,6 +88,52 @@ This ensures that:
 4. **Token Files**: These are automatically created during authentication:
    - Test: `config/token_test.pickle`
    - Production: `config/token.pickle`
+
+## USA Hockey Integration
+
+The application includes comprehensive USA Hockey portal integration for downloading registration data.
+
+### Features
+
+- **Master Report Download**: Download complete registration data
+- **Saved Report**: Run the existing "Saved_Report_All_Fields" report with all fields
+- **Colorado Filter**: Automatically filters for Colorado records only
+- **CSV Format**: Downloads reports in CSV format
+- **Progress Tracking**: Real-time progress updates during downloads
+
+### Setup
+
+1. **Configure Credentials**: Add your USA Hockey credentials to `config.yaml`:
+   ```yaml
+   usa_hockey:
+     username: "your_username"
+     password: "your_password"
+   ```
+
+2. **Test Connection**: Use the "Check Credentials" button to verify your setup
+
+### Usage
+
+1. **Navigate to USA Hockey Section**: Click "USA Hockey" in the navigation panel
+2. **Import Tab**: Use the "Import (USA)" tab for downloading reports
+3. **Master Report**: Click "Download Latest Master Report" for complete data
+4. **Saved Report**: Click "Run Saved Report (All Fields)" for the predefined report
+
+### Saved Report
+
+The saved report feature runs the existing "Saved_Report_All_Fields" report which includes:
+- All 49 available data fields
+- Automatic filtering for Colorado (State = CO) records
+- CSV format download
+- No configuration required
+
+**Report Fields Include:**
+- Member Information (names, contact info, demographics)
+- Credentials (CEP levels, SafeSport, screening)
+- Team Information (team assignments, positions, status)
+- Additional metadata (dates, notes, verification status)
+
+For detailed information, see [Saved Report Documentation](record/CUSTOM_REPORTS_README.md).
 
 ## Usage
 

@@ -90,9 +90,15 @@ class ColumnSettingsDialog:
             )
             checkbox.pack(anchor="w", pady=2)
         
-        # Pack canvas and scrollbar
-        canvas.pack(side="left", fill="both", expand=True)
+        # Pack canvas and scrollbar in correct order
         scrollbar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+        
+        # Bind mouse wheel to canvas
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        canvas.bind("<MouseWheel>", _on_mousewheel)
         
         # Buttons frame
         buttons_frame = ttk.Frame(self.dialog)
@@ -330,16 +336,16 @@ class UsaMasterView(ttk.Frame):
         actions_frame = ttk.Frame(content_frame)
         actions_frame.pack(side=BOTTOM, fill=X, pady=(20, 0))
 
-        # Load data button
+        # Load data button (hidden)
         self.load_data_btn = ttk.Button(
             actions_frame,
             text="Load Data",
             command=self.load_data,
             style="primary.TButton"
         )
-        self.load_data_btn.pack(side=LEFT, padx=(0, 10))
+        # self.load_data_btn.pack(side=LEFT, padx=(0, 10))
 
-        # Export filtered button
+        # Export filtered button (hidden)
         self.export_filtered_btn = ttk.Button(
             actions_frame,
             text="Export Filtered",
@@ -347,16 +353,16 @@ class UsaMasterView(ttk.Frame):
             style="secondary.TButton",
             state="disabled"
         )
-        self.export_filtered_btn.pack(side=LEFT, padx=(0, 10))
+        # self.export_filtered_btn.pack(side=LEFT, padx=(0, 10))
 
-        # Refresh button
+        # Refresh button (hidden)
         refresh_btn = ttk.Button(
             actions_frame,
             text="Refresh",
             command=self.refresh,
             style="secondary.TButton"
         )
-        refresh_btn.pack(side=LEFT)
+        # refresh_btn.pack(side=LEFT)
 
         # Initialize
         self.refresh()
@@ -375,13 +381,48 @@ class UsaMasterView(ttk.Frame):
         h_scrollbar = ttk.Scrollbar(tree_frame, orient=HORIZONTAL, command=self.tree.xview)
         self.tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
 
-        # Pack treeview and scrollbars
-        self.tree.pack(side=LEFT, fill=BOTH, expand=True)
+        # Pack treeview and scrollbars in correct order
         v_scrollbar.pack(side=RIGHT, fill=Y)
         h_scrollbar.pack(side=BOTTOM, fill=X)
+        self.tree.pack(side=LEFT, fill=BOTH, expand=True)
+
+        # Apply custom styling to headers
+        self.style_headers()
 
         # Bind double-click event for row details
         self.tree.bind("<Double-1>", self.show_row_details)
+
+    def style_headers(self):
+        """Apply custom styling to table headers."""
+        try:
+            # Get the current style
+            style = ttk.Style()
+            
+            # Create a custom style for treeview headers
+            style.configure(
+                "Custom.Treeview.Heading",
+                background="#2c3e50",  # Dark blue-gray
+                foreground="white",
+                font=("Helvetica", 9, "bold"),
+                relief="flat",
+                borderwidth=1
+            )
+            
+            # Apply the custom style to the treeview
+            self.tree.configure(style="Custom.Treeview")
+            
+            # Also style the treeview itself for better contrast
+            style.configure(
+                "Custom.Treeview",
+                background="white",
+                foreground="black",
+                fieldbackground="white",
+                borderwidth=1,
+                relief="solid"
+            )
+            
+        except Exception as e:
+            logger.warning(f"Failed to apply custom header styling: {e}")
 
     def load_column_visibility_preferences(self):
         """Load column visibility preferences from preferences.yaml."""
@@ -566,8 +607,8 @@ class UsaMasterView(ttk.Frame):
             width = min(max_width * 10, 300)  # Cap at 300 pixels
             self.tree.column(col, width=width, minwidth=50, anchor="center")
 
-        # Populate with data (limit to first 1000 rows for performance)
-        display_data = self.filtered_data.head(1000)
+        # Populate with data (limit to first 10,000 rows for performance)
+        display_data = self.filtered_data.head(10000)
         for idx, row in display_data.iterrows():
             values = []
             for col in display_columns:
@@ -603,6 +644,9 @@ class UsaMasterView(ttk.Frame):
         self.column_combo['values'] = display_columns
         if display_columns:
             self.column_combo.set(display_columns[0])
+        
+        # Apply styling to headers
+        self.style_headers()
 
     def sort_by_column(self, column):
         """Sort the table by a column."""

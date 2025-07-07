@@ -50,16 +50,53 @@ class OrdersView(ttk.Frame):
         )
         for col in columns:
             self.orders_tree.heading(col, text=col.replace('_', ' ').title())
-            self.orders_tree.column(col, width=100)
+            self.orders_tree.column(col, width=100, anchor="center")
         scrollbar = ttk.Scrollbar(table_frame, orient=VERTICAL, command=self.orders_tree.yview)
         self.orders_tree.configure(yscrollcommand=scrollbar.set)
         self.orders_tree.pack(side=LEFT, fill=BOTH, expand=True)
         scrollbar.pack(side=RIGHT, fill=Y)
+        
+        # Apply custom styling to headers
+        self.style_headers()
+        
         self.orders_tree.bind('<<TreeviewSelect>>', self.handle_order_select)
         details_frame = ttk.LabelFrame(self, text="Order Details", padding=10)
         details_frame.pack(fill=X, pady=(10, 0), padx=20)
         self.details_text = tk.Text(details_frame, height=8, wrap=tk.WORD)
         self.details_text.pack(fill=X)
+
+    def style_headers(self):
+        """Apply custom styling to table headers."""
+        try:
+            # Get the current style
+            style = ttk.Style()
+            
+            # Create a custom style for treeview headers
+            style.configure(
+                "Custom.Treeview.Heading",
+                background="#2c3e50",  # Dark blue-gray
+                foreground="white",
+                font=("Helvetica", 9, "bold"),
+                relief="flat",
+                borderwidth=1
+            )
+            
+            # Apply the custom style to the treeview
+            self.orders_tree.configure(style="Custom.Treeview")
+            
+            # Also style the treeview itself for better contrast
+            style.configure(
+                "Custom.Treeview",
+                background="white",
+                foreground="black",
+                fieldbackground="white",
+                borderwidth=1,
+                relief="solid"
+            )
+            
+        except Exception as e:
+            # Use a simple print since logger might not be available
+            print(f"Failed to apply custom header styling: {e}")
 
     def refresh(self):
         for item in self.orders_tree.get_children():

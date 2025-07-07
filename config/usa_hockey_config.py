@@ -56,6 +56,11 @@ class USAHockeyConfig:
         return self._config.get('master_report_url', 'https://portal.usahockey.com/tool/reports/master_registration.csv')
     
     @property
+    def custom_report_url(self) -> str:
+        """Get USA Hockey custom report URL."""
+        return self._config.get('custom_report_url', 'https://portal.usahockey.com/tool/reports/custom_report.csv')
+    
+    @property
     def association_config(self) -> Dict[str, Any]:
         """Get association selection configuration."""
         return self._config.get('association', {})
@@ -170,6 +175,16 @@ class USAHockeyConfig:
     def take_screenshots(self) -> bool:
         """Get whether to take screenshots for debugging."""
         return self.association_config.get('take_screenshots', False)
+    
+    @property
+    def association_timeout(self) -> int:
+        """Get association selection timeout in milliseconds."""
+        return self.association_config.get('page_load_timeout', 5000)  # Default to 5 seconds
+    
+    @property
+    def skip_association_navigation_wait(self) -> bool:
+        """Get whether to skip navigation wait for association selection."""
+        return self.association_config.get('skip_navigation_wait', False)
     
     def validate_credentials(self) -> bool:
         """

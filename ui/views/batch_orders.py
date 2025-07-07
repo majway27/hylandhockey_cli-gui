@@ -86,12 +86,15 @@ class BatchOrdersView(ttk.Frame):
         
         for col in columns:
             self.orders_tree.heading(col, text=col.replace('_', ' ').title())
-            self.orders_tree.column(col, width=100)
+            self.orders_tree.column(col, width=100, anchor="center")
         
         scrollbar = ttk.Scrollbar(table_frame, orient=VERTICAL, command=self.orders_tree.yview)
         self.orders_tree.configure(yscrollcommand=scrollbar.set)
         self.orders_tree.pack(side=LEFT, fill=BOTH, expand=True)
         scrollbar.pack(side=RIGHT, fill=Y)
+        
+        # Apply custom styling to headers
+        self.style_headers()
         
         # Output log
         log_frame = ttk.LabelFrame(self, text="Processing Output", padding=10)
@@ -101,6 +104,39 @@ class BatchOrdersView(ttk.Frame):
         self.output_text.configure(yscrollcommand=output_scrollbar.set)
         self.output_text.pack(side=LEFT, fill=BOTH, expand=True)
         output_scrollbar.pack(side=RIGHT, fill=Y)
+
+    def style_headers(self):
+        """Apply custom styling to table headers."""
+        try:
+            # Get the current style
+            style = ttk.Style()
+            
+            # Create a custom style for treeview headers
+            style.configure(
+                "Custom.Treeview.Heading",
+                background="#2c3e50",  # Dark blue-gray
+                foreground="white",
+                font=("Helvetica", 9, "bold"),
+                relief="flat",
+                borderwidth=1
+            )
+            
+            # Apply the custom style to the treeview
+            self.orders_tree.configure(style="Custom.Treeview")
+            
+            # Also style the treeview itself for better contrast
+            style.configure(
+                "Custom.Treeview",
+                background="white",
+                foreground="black",
+                fieldbackground="white",
+                borderwidth=1,
+                relief="solid"
+            )
+            
+        except Exception as e:
+            # Use a simple print since logger might not be available
+            print(f"Failed to apply custom header styling: {e}")
 
     def refresh(self):
         """Refresh the orders list."""
