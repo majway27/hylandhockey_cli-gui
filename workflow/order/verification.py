@@ -229,11 +229,18 @@ class OrderVerification:
         # Get rate limiting config
         rate_config = get_rate_limiting_config(self.config)
         
+        # Filter out empty email addresses and join with commas for multiple recipients
+        valid_emails = [email for email in order.parent_emails if email and email.strip()]
+        if not valid_emails:
+            raise NoParentEmailError(f"No valid parent email found for {order.participant_full_name}")
+        
+        to_emails = ', '.join(valid_emails)
+        
         # Use rate-limited Gmail function
         draft = notify.create_gmail_draft_with_retry(
             self.sender_email,
-            order.parent_emails[0],  # Send to first parent email
-            f"Jersey Order Verification - {order.participant_full_name}",
+            to_emails,  # Send to all parent emails
+            f"{order.participant_full_name} Uniform Order Confirmation",
             email_content,
             self.config
         )
