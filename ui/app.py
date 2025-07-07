@@ -10,6 +10,8 @@ from ui.views.configuration import ConfigurationView
 from ui.views.logs import LogsView
 from ui.views.usa_import import UsaImportView
 from ui.views.usa_master import UsaMasterView
+from ui.views.usa_vbd import UsaVbdView
+from ui.views.usa_safe import UsaSafeView
 
 class RegistrarApp:
     def __init__(self, config, order_verification, log_viewer):
@@ -65,7 +67,9 @@ class RegistrarApp:
             "Single (Order)": OrdersView(self.content_area, self.config, self.order_verification, on_order_select=self.show_email_view),
             "Batch (Orders)": BatchOrdersView(self.content_area, self.config, self.order_verification),
             "Import (USA)": UsaImportView(self.content_area, self.config, on_navigate=self.show_view),
-            "Master (USA)": UsaMasterView(self.content_area, self.config),
+            "Master (USA)": UsaMasterView(self.content_area, self.config, on_navigate=self.show_view),
+            "VBD (USA)": UsaVbdView(self.content_area, self.config, on_navigate=self.show_view),
+            "Safe Sport (USA)": UsaSafeView(self.content_area, self.config, on_navigate=self.show_view),
             "Email": EmailView(self.content_area, self.config, self.order_verification),
             "Configuration": ConfigurationView(self.content_area, self.config),
             "Logs": LogsView(self.content_area, self.log_viewer),
@@ -92,7 +96,7 @@ class RegistrarApp:
             self.status_var.set(f"Viewing: {view_name}")
             
             # Refresh data when switching to views that display order information
-            if view_name in ["Dashboard", "Single (Order)", "Batch (Orders)", "Master (USA)"] and hasattr(view, 'refresh'):
+            if view_name in ["Dashboard", "Single (Order)", "Batch (Orders)", "Master (USA)", "VBD (USA)", "Safe Sport (USA)"] and hasattr(view, 'refresh'):
                 view.refresh()
 
     def show_email_view(self, order=None):

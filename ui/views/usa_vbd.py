@@ -10,7 +10,7 @@ import json
 from workflow.usa_hockey import MasterReportsWorkflow
 from workflow.usa_hockey.data_processor import DataProcessor
 from config.logging_config import get_logger
-from ui.utils.styling import apply_treeview_styling, configure_columns_with_priority_styling, apply_alternating_row_colors, get_alternating_row_tags
+from ui.utils.styling import apply_treeview_styling, apply_alternating_row_colors, get_alternating_row_tags, configure_columns_with_priority_styling
 
 logger = get_logger(__name__)
 
@@ -177,7 +177,7 @@ class ColumnSettingsDialog:
         self.dialog.destroy()
 
 
-class UsaMasterView(ttk.Frame):
+class UsaVbdView(ttk.Frame):
     def __init__(self, master, config, on_navigate=None, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
         self.config = config
@@ -194,7 +194,7 @@ class UsaMasterView(ttk.Frame):
         # Header
         header_label = ttk.Label(
             self,
-            text="USA Hockey Master Registration Data",
+            text="USA Hockey VBD (Verification Required) Data",
             font=("Helvetica", 14, "bold")
         )
         header_label.pack(pady=(20, 10))
@@ -202,12 +202,13 @@ class UsaMasterView(ttk.Frame):
         # Description
         desc_label = ttk.Label(
             self,
-            text="View and filter master registration records",
-            font=("Helvetica", 10)
+            text="Records requiring DOB verification (Member Type: 'P', DOB Verified: 'Not Verified')",
+            font=("Helvetica", 10),
+            foreground="gray"
         )
         desc_label.pack(pady=(0, 20))
 
-        # Control panel (status, record count, settings)
+        # Control panel
         control_frame = ttk.Frame(self)
         control_frame.pack(fill=X, padx=20, pady=(0, 10))
 
@@ -257,14 +258,14 @@ class UsaMasterView(ttk.Frame):
         filter_buttons_frame = ttk.Frame(filters_frame)
         filter_buttons_frame.pack(fill=X)
 
-        # Verified Birthday Check button
-        self.vbd_check_btn = ttk.Button(
+        # Back to Master Data button
+        self.back_to_master_btn = ttk.Button(
             filter_buttons_frame,
-            text="Verified Birthday Check",
-            command=self.navigate_to_vbd,
-            style="warning.TButton"
+            text="Back to Master Data",
+            command=self.navigate_to_master,
+            style="info.TButton"
         )
-        self.vbd_check_btn.pack(side=LEFT, padx=(0, 10))
+        self.back_to_master_btn.pack(side=LEFT, padx=(0, 10))
 
         # Safe Sport Check button
         self.safe_sport_btn = ttk.Button(
@@ -275,78 +276,354 @@ class UsaMasterView(ttk.Frame):
         )
         self.safe_sport_btn.pack(side=LEFT, padx=(0, 10))
 
-        # Custom filter frame (right 50%)
-        custom_filter_frame = ttk.LabelFrame(top_controls_frame, text="Custom Filter", padding=10)
-        custom_filter_frame.grid(row=0, column=1, sticky="ew", padx=(5, 0))
+        # Controls frame (right 50%)
+        controls_frame = ttk.LabelFrame(top_controls_frame, text="Controls", padding=10)
+        controls_frame.grid(row=0, column=1, sticky="ew", padx=(5, 0))
 
-        # Filter controls
-        filter_controls_frame = ttk.Frame(custom_filter_frame)
-        filter_controls_frame.pack(fill=X)
-
-        # Column selector
-        ttk.Label(filter_controls_frame, text="Column:").pack(side=LEFT, padx=(0, 5))
-        self.column_var = tk.StringVar()
-        self.column_combo = ttk.Combobox(
-            filter_controls_frame,
-            textvariable=self.column_var,
-            state="readonly",
-            width=20
+        # Export button
+        self.export_btn = ttk.Button(
+            controls_frame,
+            text="Export VBD Data",
+            command=self.export_vbd_data,
+            style="success.TButton",
+            state="disabled"
         )
-        self.column_combo.pack(side=LEFT, padx=(0, 10))
+        self.export_btn.pack(side=RIGHT)
 
-        # Value entry
-        ttk.Label(filter_controls_frame, text="Value:").pack(side=LEFT, padx=(0, 5))
-        self.filter_value_var = tk.StringVar()
-        self.filter_value_entry = ttk.Entry(
-            filter_controls_frame,
-            textvariable=self.filter_value_var,
-            width=20
-        )
-        self.filter_value_entry.pack(side=LEFT, padx=(0, 10))
-
-        # Apply custom filter button
-        self.apply_custom_filter_btn = ttk.Button(
-            filter_controls_frame,
-            text="Apply Filter",
-            command=self.apply_custom_filter,
-            style="primary.TButton"
-        )
-        self.apply_custom_filter_btn.pack(side=LEFT)
-
-        # Table frame
-        table_frame = ttk.Frame(self)
-        table_frame.pack(fill=BOTH, expand=True, padx=20, pady=10)
-
-        # Create treeview for data display
-        self.create_treeview(table_frame)
-
-        # Initialize
-        self.refresh()
-
-    def create_treeview(self, parent):
-        """Create the treeview for displaying data."""
-        # Create frame for treeview and scrollbars
-        tree_frame = ttk.Frame(parent)
-        tree_frame.pack(fill=BOTH, expand=True)
+        # Main content area
+        content_frame = ttk.Frame(self)
+        content_frame.pack(fill=BOTH, expand=True, padx=20, pady=10)
 
         # Create treeview
-        self.tree = ttk.Treeview(tree_frame, show="headings", height=15)
-        
-        # Create scrollbars
-        v_scrollbar = ttk.Scrollbar(tree_frame, orient=VERTICAL, command=self.tree.yview)
-        h_scrollbar = ttk.Scrollbar(tree_frame, orient=HORIZONTAL, command=self.tree.xview)
+        self.create_treeview(content_frame)
+
+        # Scrollbars
+        v_scrollbar = ttk.Scrollbar(content_frame, orient=VERTICAL, command=self.tree.yview)
+        h_scrollbar = ttk.Scrollbar(content_frame, orient=HORIZONTAL, command=self.tree.xview)
         self.tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
 
-        # Pack treeview and scrollbars in correct order
-        v_scrollbar.pack(side=RIGHT, fill=Y)
-        h_scrollbar.pack(side=BOTTOM, fill=X)
-        self.tree.pack(side=LEFT, fill=BOTH, expand=True)
+        # Grid layout for treeview and scrollbars
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        v_scrollbar.grid(row=0, column=1, sticky="ns")
+        h_scrollbar.grid(row=1, column=0, sticky="ew")
+
+        content_frame.columnconfigure(0, weight=1)
+        content_frame.rowconfigure(0, weight=1)
 
         # Apply custom styling to headers
         apply_treeview_styling(self.tree)
-
-        # Bind double-click event for row details
+        
+        # Bind double-click to show details
         self.tree.bind("<Double-1>", self.show_row_details)
+
+    def create_treeview(self, parent):
+        """Create the treeview widget."""
+        # Define columns (will be populated when data is loaded)
+        columns = ("Loading...",)
+        
+        self.tree = ttk.Treeview(parent, columns=columns, show="headings", height=20)
+        
+        # Configure column headings
+        for col in columns:
+            self.tree.heading(col, text=col, command=lambda c=col: self.sort_by_column(c))
+            self.tree.column(col, width=150, minwidth=100)
+
+    def load_data(self):
+        """Load data from the master registration file."""
+        try:
+            # Try to get data from config first
+            if hasattr(self.config, 'current_master_data') and self.config.current_master_data is not None:
+                self.current_data = self.config.current_master_data
+                self.current_file_path = getattr(self.config, 'current_master_file_path', None)
+                self.apply_vbd_filter()
+            else:
+                # If no data in config, prompt user to load file
+                file_path = filedialog.askopenfilename(
+                    title="Select USA Hockey Master Registration File",
+                    filetypes=[
+                        ("Excel files", "*.xlsx"),
+                        ("CSV files", "*.csv"),
+                        ("All files", "*.*")
+                    ],
+                    initialdir=self.workflow.get_download_directory()
+                )
+                
+                if file_path:
+                    self.load_from_file(Path(file_path))
+                    
+        except Exception as e:
+            logger.error(f"Error loading data: {e}")
+            messagebox.showerror("Error", f"Failed to load data: {str(e)}")
+
+    def load_from_file(self, file_path: Path):
+        """Load data from a specific file."""
+        try:
+            self.current_data = self.workflow.load_master_data(file_path)
+            self.current_file_path = file_path
+            self.apply_vbd_filter()
+            
+        except Exception as e:
+            logger.error(f"Error loading file: {e}")
+            messagebox.showerror("Error", f"Failed to load file: {str(e)}")
+
+    def apply_vbd_filter(self):
+        """Apply VBD filter: Member Type 'P' and DOB Verified 'Not Verified'."""
+        if self.current_data is None:
+            messagebox.showwarning("Warning", "No data to filter")
+            return
+
+        try:
+            # Apply VBD filter
+            self.filtered_data = self.current_data.copy()
+            
+            # Filter for Member Type 'P'
+            if 'Member Type' in self.filtered_data.columns:
+                self.filtered_data = self.filtered_data[
+                    self.filtered_data['Member Type'] == 'P'
+                ]
+            elif 'member_type' in self.filtered_data.columns:
+                self.filtered_data = self.filtered_data[
+                    self.filtered_data['member_type'] == 'P'
+                ]
+            
+            # Filter for DOB Verified 'Not Verified'
+            if 'DOB Verified' in self.filtered_data.columns:
+                self.filtered_data = self.filtered_data[
+                    self.filtered_data['DOB Verified'] == 'Not Verified'
+                ]
+            elif 'dob_verified' in self.filtered_data.columns:
+                self.filtered_data = self.filtered_data[
+                    self.filtered_data['dob_verified'] == 'Not Verified'
+                ]
+            
+            # Populate the table
+            self.populate_table()
+            
+        except Exception as e:
+            logger.error(f"Error applying VBD filter: {e}")
+            messagebox.showerror("Error", f"Failed to apply VBD filter: {str(e)}")
+
+    def populate_table(self):
+        """Populate the table with filtered data."""
+        if self.filtered_data is None or self.filtered_data.empty:
+            self.data_status_var.set("No VBD records found")
+            self.record_count_var.set("")
+            self.export_btn.config(state="disabled")
+            return
+
+        # Get all columns
+        all_columns = list(self.filtered_data.columns)
+        
+        # Load column visibility preferences
+        saved_preferences = self.load_column_visibility_preferences()
+        if saved_preferences:
+            # Apply saved preferences
+            visible_columns = []
+            for col in all_columns:
+                if col in saved_preferences:
+                    if saved_preferences[col]:
+                        visible_columns.append(col)
+                else:
+                    # New column, show by default
+                    visible_columns.append(col)
+            self.visible_columns = visible_columns
+        else:
+            # No saved preferences, set default visible columns
+            if self.visible_columns is None:
+                # Prioritize important columns for VBD workflow
+                priority_columns = [
+                    'Member ID', 'First Name', 'Last Name', 'DOB', 'DOB Verified',
+                    'Member Type', 'Registration Date', 'Status'
+                ]
+                
+                # Try to match priority columns with actual columns (case-insensitive)
+                self.visible_columns = []
+                for priority_col in priority_columns:
+                    for col in all_columns:
+                        if priority_col.lower() == col.lower():
+                            self.visible_columns.append(col)
+                            break
+                
+                # Add any remaining columns
+                for col in all_columns:
+                    if col not in self.visible_columns:
+                        self.visible_columns.append(col)
+
+        # Update the display
+        self.update_display_with_filtered_data()
+
+    def update_display_with_filtered_data(self):
+        """Update the table display with filtered data."""
+        if self.filtered_data is None:
+            return
+
+        # Clear existing items
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        # Get display columns
+        display_columns = self.visible_columns if self.visible_columns else list(self.filtered_data.columns)
+        
+        # Configure treeview columns
+        self.tree["columns"] = display_columns
+        
+        # Configure column headings
+        for col in display_columns:
+            self.tree.heading(col, text=col, command=lambda c=col: self.sort_by_column(c))
+        
+        # Define priority column settings for VBD workflow
+        priority_columns = {
+            'Member ID': {'width': 120, 'minwidth': 100},
+            'First Name': {'width': 120, 'minwidth': 100},
+            'Last Name': {'width': 120, 'minwidth': 100},
+            'DOB': {'width': 100, 'minwidth': 80},
+            'DOB Verified': {'width': 100, 'minwidth': 80},
+            'Member Type': {'width': 100, 'minwidth': 80},
+            'Registration Date': {'width': 100, 'minwidth': 80},
+            'Status': {'width': 100, 'minwidth': 80}
+        }
+        
+        # Configure columns with global styling
+        configure_columns_with_priority_styling(self.tree, display_columns, priority_columns)
+
+        # Populate with data
+        total_records = len(self.filtered_data)
+        displayed_records = 0
+        
+        for idx, row in self.filtered_data.iterrows():
+            values = []
+            for col in display_columns:
+                value = row.get(col, "")
+                if pd.isna(value):
+                    value = ""
+                elif isinstance(value, (int, float)):
+                    value = str(value)
+                values.append(str(value))
+            
+            # Insert with alternating row colors
+            tags = get_alternating_row_tags(displayed_records)
+            self.tree.insert("", "end", values=values, tags=tags)
+            displayed_records += 1
+
+        # Apply alternating row colors
+        apply_alternating_row_colors(self.tree)
+
+        # Update status
+        self.data_status_var.set("VBD data loaded")
+        self.record_count_var.set(f"Showing {displayed_records:,} VBD records")
+        
+        # Enable export button
+        self.export_btn.config(state="normal")
+        
+        # Apply styling to headers
+        apply_treeview_styling(self.tree)
+
+    def sort_by_column(self, column):
+        """Sort the table by a column."""
+        if self.filtered_data is None:
+            return
+            
+        # Toggle sort order
+        if hasattr(self, '_sort_reverse'):
+            self._sort_reverse = not self._sort_reverse
+        else:
+            self._sort_reverse = False
+            
+        # Sort the data
+        self.filtered_data = self.filtered_data.sort_values(by=column, ascending=not self._sort_reverse)
+        
+        # Re-populate the table
+        self.update_display_with_filtered_data()
+
+    def show_row_details(self, event):
+        """Show detailed information for a selected row."""
+        selection = self.tree.selection()
+        if not selection:
+            return
+
+        item = self.tree.item(selection[0])
+        values = item['values']
+        columns = self.tree["columns"]
+
+        # Create detail window
+        detail_window = tk.Toplevel(self)
+        detail_window.title("VBD Record Details")
+        detail_window.geometry("600x400")
+
+        # Create text widget for details
+        text_widget = tk.Text(detail_window, wrap=tk.WORD, padx=10, pady=10)
+        text_widget.pack(fill=BOTH, expand=True)
+
+        # Add scrollbar
+        scrollbar = ttk.Scrollbar(detail_window, orient=VERTICAL, command=text_widget.yview)
+        scrollbar.pack(side=RIGHT, fill=Y)
+        text_widget.configure(yscrollcommand=scrollbar.set)
+
+        # Populate with details
+        for i, (col, val) in enumerate(zip(columns, values)):
+            text_widget.insert(tk.END, f"{col}: {val}\n")
+            if i < len(columns) - 1:
+                text_widget.insert(tk.END, "-" * 50 + "\n")
+
+        text_widget.config(state=tk.DISABLED)
+
+    def export_vbd_data(self):
+        """Export the VBD data to a file."""
+        if self.filtered_data is None or self.filtered_data.empty:
+            messagebox.showwarning("Warning", "No VBD data to export")
+            return
+
+        # Ask user for export format and location
+        file_path = filedialog.asksaveasfilename(
+            title="Export VBD Data",
+            defaultextension=".xlsx",
+            filetypes=[
+                ("Excel files", "*.xlsx"),
+                ("CSV files", "*.csv"),
+                ("All files", "*.*")
+            ],
+            initialdir=self.workflow.get_download_directory()
+        )
+        
+        if file_path:
+            try:
+                output_path = Path(file_path)
+                
+                # Apply column visibility to export data
+                if self.visible_columns is not None:
+                    export_data = self.filtered_data[self.visible_columns]
+                else:
+                    export_data = self.filtered_data
+                
+                if output_path.suffix.lower() == '.xlsx':
+                    success = self.workflow.export_to_excel(export_data, output_path)
+                else:
+                    # Export as CSV
+                    export_data.to_csv(output_path, index=False)
+                    success = True
+                
+                if success:
+                    messagebox.showinfo("Success", f"VBD data exported successfully to:\n{output_path}")
+                else:
+                    messagebox.showerror("Error", "Failed to export VBD data")
+                    
+            except Exception as e:
+                logger.error(f"Export error: {e}")
+                messagebox.showerror("Error", f"Failed to export VBD data: {str(e)}")
+
+    def navigate_to_master(self):
+        """Navigate to the Master (USA) screen."""
+        if self.on_navigate:
+            self.on_navigate("Master (USA)")
+        else:
+            logger.warning("Navigation callback not available")
+
+    def navigate_to_safe_sport(self):
+        """Navigate to the Safe Sport (USA) screen."""
+        if self.on_navigate:
+            self.on_navigate("Safe Sport (USA)")
+        else:
+            logger.warning("Navigation callback not available")
 
     def load_column_visibility_preferences(self):
         """Load column visibility preferences from preferences.yaml."""
@@ -360,7 +637,7 @@ class UsaMasterView(ttk.Frame):
                 with open(preferences_path) as f:
                     preferences = yaml.load(f) or {}
                 
-                return preferences.get('usa_master_column_visibility', {})
+                return preferences.get('usa_vbd_column_visibility', {})
         except Exception as e:
             logger.warning(f"Failed to load column visibility preferences: {e}")
         
@@ -381,7 +658,7 @@ class UsaMasterView(ttk.Frame):
                     preferences = yaml.load(f) or {}
             
             # Update column visibility preferences
-            preferences['usa_master_column_visibility'] = column_visibility
+            preferences['usa_vbd_column_visibility'] = column_visibility
             
             # Save updated preferences
             yaml = YAML(typ='safe')
@@ -396,12 +673,12 @@ class UsaMasterView(ttk.Frame):
 
     def show_column_settings(self):
         """Show the column visibility settings dialog."""
-        if self.current_data is None or self.current_data.empty:
+        if self.filtered_data is None or self.filtered_data.empty:
             messagebox.showwarning("Warning", "No data loaded. Please load data first.")
             return
         
         # Get current columns
-        all_columns = list(self.current_data.columns)
+        all_columns = list(self.filtered_data.columns)
         
         # Load saved preferences
         saved_preferences = self.load_column_visibility_preferences()
@@ -435,308 +712,14 @@ class UsaMasterView(ttk.Frame):
             # Refresh the display
             self.update_display_with_filtered_data()
 
-    def load_data(self):
-        """Load data from the import view or from a file."""
-        # First try to get data from config (set by import view)
-        if hasattr(self.config, 'current_master_data') and self.config.current_master_data is not None:
-            self.current_data = self.config.current_master_data
-            self.current_file_path = getattr(self.config, 'current_master_file_path', None)
-            self.populate_table()
-            return
-
-        # If no data in config, ask user to select a file
-        file_path = filedialog.askopenfilename(
-            title="Select Master Report File",
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
-            initialdir=self.workflow.get_download_directory()
-        )
-        
-        if file_path:
-            self.load_from_file(Path(file_path))
-
-    def load_from_file(self, file_path: Path):
-        """Load data from a file."""
-        try:
-            # Process the data
-            df = self.workflow.process_master_report(file_path)
-            
-            if df is not None:
-                self.current_data = df
-                self.current_file_path = file_path
-                self.populate_table()
-                messagebox.showinfo("Success", f"Loaded {len(df):,} records from master report")
-            else:
-                messagebox.showerror("Error", "Failed to process the master report file")
-                
-        except Exception as e:
-            logger.error(f"Error loading data: {e}")
-            messagebox.showerror("Error", f"Failed to load data: {str(e)}")
-
-    def populate_table(self):
-        """Populate the treeview with data."""
-        if self.current_data is None or self.current_data.empty:
-            self.data_status_var.set("No data available")
-            self.record_count_var.set("")
-            return
-
-        # Set filtered data to current data initially
-        self.filtered_data = self.current_data.copy()
-        
-        # Load column visibility preferences
-        saved_preferences = self.load_column_visibility_preferences()
-        if saved_preferences:
-            # Apply saved preferences
-            visible_columns = []
-            for col in self.current_data.columns:
-                if col in saved_preferences:
-                    if saved_preferences[col]:
-                        visible_columns.append(col)
-                else:
-                    # New column, show by default
-                    visible_columns.append(col)
-            self.visible_columns = visible_columns
-        else:
-            # No saved preferences, show all columns
-            self.visible_columns = list(self.current_data.columns)
-        
-        # Update the display with the data
-        self.update_display_with_filtered_data()
-
-    def update_display_with_filtered_data(self):
-        """Update the table display with filtered data."""
-        if self.filtered_data is None:
-            return
-
-        # Clear existing data
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-
-        # Determine which columns to show
-        if self.visible_columns is None:
-            # No visibility preferences set, show all columns
-            display_columns = list(self.filtered_data.columns)
-        else:
-            # Use visibility preferences
-            display_columns = [col for col in self.filtered_data.columns if col in self.visible_columns]
-
-        # Set up columns
-        self.tree["columns"] = display_columns
-        
-        # Configure column headings
-        for col in display_columns:
-            self.tree.heading(col, text=col, command=lambda c=col: self.sort_by_column(c))
-        
-        # Calculate dynamic column widths based on content
-        priority_columns = {}
-        for col in display_columns:
-            # Set reasonable column widths
-            max_width = max(len(str(col)), 
-                          self.filtered_data[col].astype(str).str.len().max() if not self.filtered_data[col].empty else 0)
-            width = min(max_width * 10, 300)  # Cap at 300 pixels
-            priority_columns[col] = {'width': width, 'minwidth': 50}
-        
-        # Configure columns with global styling
-        configure_columns_with_priority_styling(self.tree, display_columns, priority_columns)
-
-        # Populate with data (limit to first 10,000 rows for performance)
-        display_data = self.filtered_data.head(10000)
-        for i, (idx, row) in enumerate(display_data.iterrows()):
-            values = []
-            for col in display_columns:
-                value = row[col]
-                # Check for various forms of NaN/null values
-                if (pd.isna(value) or 
-                    str(value).lower() in ['nan', 'none', 'null', ''] or
-                    str(value).strip() == ''):
-                    values.append("")
-                else:
-                    values.append(str(value))
-            
-            # Insert with alternating row colors
-            tags = get_alternating_row_tags(i)
-            self.tree.insert("", "end", values=values, tags=tags)
-
-        # Update status
-        total_records = len(self.current_data)
-        filtered_records = len(self.filtered_data)
-        displayed_records = len(display_data)
-        
-        if self.current_file_path:
-            self.data_status_var.set(f"Data loaded from {self.current_file_path.name}")
-        else:
-            self.data_status_var.set("Data loaded")
-            
-        if filtered_records == total_records:
-            self.record_count_var.set(f"Showing {displayed_records:,} of {total_records:,} records")
-        else:
-            self.record_count_var.set(f"Showing {displayed_records:,} of {filtered_records:,} filtered records (from {total_records:,} total)")
-        
-        # Update column selector (only show visible columns)
-        self.column_combo['values'] = display_columns
-        if display_columns:
-            self.column_combo.set(display_columns[0])
-        
-        # Apply styling to headers
-        apply_treeview_styling(self.tree)
-        
-        # Apply alternating row colors
-        apply_alternating_row_colors(self.tree)
-
-    def sort_by_column(self, column):
-        """Sort the table by a column."""
-        if self.filtered_data is None:
-            return
-            
-        # Toggle sort order
-        if hasattr(self, '_sort_reverse'):
-            self._sort_reverse = not self._sort_reverse
-        else:
-            self._sort_reverse = False
-            
-        # Sort the data
-        self.filtered_data = self.filtered_data.sort_values(by=column, ascending=not self._sort_reverse)
-        
-        # Re-populate the table
-        self.update_display_with_filtered_data()
-
-    def apply_custom_filter(self):
-        """Apply custom filter based on user input."""
-        if self.current_data is None:
-            messagebox.showwarning("Warning", "No data to filter")
-            return
-
-        column = self.column_var.get()
-        value = self.filter_value_var.get()
-
-        if not column or not value:
-            messagebox.showwarning("Warning", "Please select a column and enter a value")
-            return
-
-        try:
-            # Apply the filter
-            self.filtered_data = self.current_data[
-                self.current_data[column].astype(str).str.contains(value, case=False, na=False)
-            ]
-            
-            # Update the display
-            self.update_display_with_filtered_data()
-            
-        except Exception as e:
-            logger.error(f"Error applying custom filter: {e}")
-            messagebox.showerror("Error", f"Failed to apply filter: {str(e)}")
-
-    def navigate_to_vbd(self):
-        """Navigate to the VBD (USA) screen."""
-        if self.on_navigate:
-            self.on_navigate("VBD (USA)")
-        else:
-            logger.warning("Navigation callback not available")
-
-    def navigate_to_safe_sport(self):
-        """Navigate to the Safe Sport (USA) screen."""
-        if self.on_navigate:
-            self.on_navigate("Safe Sport (USA)")
-        else:
-            logger.warning("Navigation callback not available")
-
-    def clear_filters(self):
-        """Clear all filters and show all data."""
-        if self.current_data is not None:
-            self.filtered_data = self.current_data.copy()
-            self.update_display_with_filtered_data()
-            self.filter_value_var.set("")
-
-    def show_row_details(self, event):
-        """Show detailed information for a selected row."""
-        selection = self.tree.selection()
-        if not selection:
-            return
-
-        item = self.tree.item(selection[0])
-        values = item['values']
-        columns = self.tree["columns"]
-
-        # Create detail window
-        detail_window = tk.Toplevel(self)
-        detail_window.title("Record Details")
-        detail_window.geometry("600x400")
-
-        # Create text widget for details
-        text_widget = tk.Text(detail_window, wrap=tk.WORD, padx=10, pady=10)
-        text_widget.pack(fill=BOTH, expand=True)
-
-        # Add scrollbar
-        scrollbar = ttk.Scrollbar(detail_window, orient=VERTICAL, command=text_widget.yview)
-        scrollbar.pack(side=RIGHT, fill=Y)
-        text_widget.configure(yscrollcommand=scrollbar.set)
-
-        # Populate with details
-        for i, (col, val) in enumerate(zip(columns, values)):
-            text_widget.insert(tk.END, f"{col}: {val}\n")
-            if i < len(columns) - 1:
-                text_widget.insert(tk.END, "-" * 50 + "\n")
-
-        text_widget.config(state=tk.DISABLED)
-
-    def export_filtered_data(self):
-        """Export the filtered data to a file."""
-        if self.filtered_data is None or self.filtered_data.empty:
-            messagebox.showwarning("Warning", "No data to export")
-            return
-
-        # Ask user for export format and location
-        file_path = filedialog.asksaveasfilename(
-            title="Export Filtered Data",
-            defaultextension=".xlsx",
-            filetypes=[
-                ("Excel files", "*.xlsx"),
-                ("CSV files", "*.csv"),
-                ("All files", "*.*")
-            ],
-            initialdir=self.workflow.get_download_directory()
-        )
-        
-        if file_path:
-            try:
-                output_path = Path(file_path)
-                
-                # Apply column visibility to export data
-                if self.visible_columns is not None:
-                    export_data = self.filtered_data[self.visible_columns]
-                else:
-                    export_data = self.filtered_data
-                
-                if output_path.suffix.lower() == '.xlsx':
-                    success = self.workflow.export_to_excel(export_data, output_path)
-                else:
-                    # Export as CSV
-                    export_data.to_csv(output_path, index=False)
-                    success = True
-                
-                if success:
-                    messagebox.showinfo("Success", f"Filtered data exported successfully to:\n{output_path}")
-                else:
-                    messagebox.showerror("Error", "Failed to export data")
-                    
-            except Exception as e:
-                logger.error(f"Export error: {e}")
-                messagebox.showerror("Error", f"Failed to export data: {str(e)}")
-
     def refresh(self):
         """Refresh the view and check for data."""
         # Try to load data from config first
         if hasattr(self.config, 'current_master_data') and self.config.current_master_data is not None:
             self.current_data = self.config.current_master_data
             self.current_file_path = getattr(self.config, 'current_master_file_path', None)
-            self.populate_table()
+            self.apply_vbd_filter()
         else:
             self.data_status_var.set("No data loaded")
             self.record_count_var.set("")
-        
-        if hasattr(self.config, 'current_master_data') and self.config.current_master_data is not None:
-            self.current_data = self.config.current_master_data
-            self.current_file_path = getattr(self.config, 'current_master_file_path', None)
-            self.populate_table()
-        else:
-            self.data_status_var.set("No data loaded")
-            self.record_count_var.set("") 
+            self.export_btn.config(state="disabled") 

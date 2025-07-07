@@ -133,6 +133,9 @@ class UsaImportView(ttk.Frame):
         # Files listbox
         self.files_listbox = tk.Listbox(files_list_frame, height=8)
         self.files_listbox.pack(side=LEFT, fill=BOTH, expand=True)
+        
+        # Bind double-click event to load and view data
+        self.files_listbox.bind("<Double-1>", self.on_file_double_click)
 
         # Scrollbar for files listbox
         files_scrollbar = ttk.Scrollbar(files_list_frame, orient=VERTICAL, command=self.files_listbox.yview)
@@ -567,4 +570,43 @@ class UsaImportView(ttk.Frame):
             else:
                 messagebox.showwarning("Warning", "Navigation not available")
         else:
-            messagebox.showwarning("Warning", "No data loaded for viewing") 
+            messagebox.showwarning("Warning", "No data loaded for viewing")
+
+    def on_file_double_click(self, event):
+        """Handle double-click on a file in the listbox."""
+        # Get the clicked item
+        selection = self.files_listbox.curselection()
+        if not selection:
+            return
+        
+        try:
+            # Get the selected file path
+            download_dir = self.config.usa_hockey.download_directory
+            files = []
+            for ext in ['*.csv', '*.xlsx', '*.xls']:
+                files.extend(download_dir.glob(ext))
+            files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+            
+            selected_index = selection[0]
+            if selected_index < len(files):
+                file_path = files[selected_index]
+                
+                # Load the file data
+                self.load_file_preview(file_path)
+                
+                # Wait a moment for the data to load, then navigate to Master view
+                self.after(100, self.navigate_to_master_after_load)
+                
+        except Exception as e:
+            logger.error(f"Error handling file double-click: {e}")
+            messagebox.showerror("Error", f"Failed to load file: {e}")
+
+    def navigate_to_master_after_load(self):
+        """Navigate to Master view after data has been loaded."""
+        if hasattr(self.config, 'current_master_data') and self.config.current_master_data is not None:
+            if self.on_navigate:
+                self.on_navigate("Master (USA)")
+            else:
+                messagebox.showwarning("Warning", "Navigation not available")
+        else:
+            messagebox.showwarning("Warning", "Failed to load data for viewing") 

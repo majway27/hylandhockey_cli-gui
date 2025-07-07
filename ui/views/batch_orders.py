@@ -5,6 +5,7 @@ import threading
 import time
 
 from utils.rate_limiting import RateLimitExceededError
+from ui.utils.styling import apply_treeview_styling, configure_columns_with_priority_styling, apply_alternating_row_colors, get_alternating_row_tags
 
 class BatchOrdersView(ttk.Frame):
     def __init__(self, master, config, order_verification, *args, **kwargs):
@@ -86,7 +87,9 @@ class BatchOrdersView(ttk.Frame):
         
         for col in columns:
             self.orders_tree.heading(col, text=col.replace('_', ' ').title())
-            self.orders_tree.column(col, width=100, anchor="center")
+        
+        # Configure columns with global styling
+        configure_columns_with_priority_styling(self.orders_tree, columns)
         
         scrollbar = ttk.Scrollbar(table_frame, orient=VERTICAL, command=self.orders_tree.yview)
         self.orders_tree.configure(yscrollcommand=scrollbar.set)
@@ -94,7 +97,7 @@ class BatchOrdersView(ttk.Frame):
         scrollbar.pack(side=RIGHT, fill=Y)
         
         # Apply custom styling to headers
-        self.style_headers()
+        apply_treeview_styling(self.orders_tree)
         
         # Output log
         log_frame = ttk.LabelFrame(self, text="Processing Output", padding=10)
@@ -105,38 +108,7 @@ class BatchOrdersView(ttk.Frame):
         self.output_text.pack(side=LEFT, fill=BOTH, expand=True)
         output_scrollbar.pack(side=RIGHT, fill=Y)
 
-    def style_headers(self):
-        """Apply custom styling to table headers."""
-        try:
-            # Get the current style
-            style = ttk.Style()
-            
-            # Create a custom style for treeview headers
-            style.configure(
-                "Custom.Treeview.Heading",
-                background="#2c3e50",  # Dark blue-gray
-                foreground="white",
-                font=("Helvetica", 9, "bold"),
-                relief="flat",
-                borderwidth=1
-            )
-            
-            # Apply the custom style to the treeview
-            self.orders_tree.configure(style="Custom.Treeview")
-            
-            # Also style the treeview itself for better contrast
-            style.configure(
-                "Custom.Treeview",
-                background="white",
-                foreground="black",
-                fieldbackground="white",
-                borderwidth=1,
-                relief="solid"
-            )
-            
-        except Exception as e:
-            # Use a simple print since logger might not be available
-            print(f"Failed to apply custom header styling: {e}")
+
 
     def refresh(self):
         """Refresh the orders list."""
@@ -150,6 +122,9 @@ class BatchOrdersView(ttk.Frame):
         for i, order in enumerate(pending_orders):
             contacted_status = "Yes" if order.contacted else "No"
             confirmed_status = "Yes" if order.confirmed else "No"
+            
+            # Insert with alternating row colors
+            tags = get_alternating_row_tags(i)
             item_id = self.orders_tree.insert('', END, values=(
                 order.participant_full_name,
                 order.jersey_name,
@@ -158,8 +133,11 @@ class BatchOrdersView(ttk.Frame):
                 order.jersey_type,
                 contacted_status,
                 confirmed_status
-            ))
+            ), tags=tags)
             self.order_item_map[item_id] = order
+        
+        # Apply alternating row colors
+        apply_alternating_row_colors(self.orders_tree)
         
         self.log_output(f"Found {len(pending_orders)} eligible orders for processing")
 

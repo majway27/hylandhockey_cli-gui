@@ -1,6 +1,7 @@
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 import tkinter as tk
+from ui.utils.styling import apply_treeview_styling, configure_columns_with_priority_styling, apply_alternating_row_colors, get_alternating_row_tags
 
 class OrdersView(ttk.Frame):
     def __init__(self, master, config, order_verification, on_order_select=None, *args, **kwargs):
@@ -50,14 +51,16 @@ class OrdersView(ttk.Frame):
         )
         for col in columns:
             self.orders_tree.heading(col, text=col.replace('_', ' ').title())
-            self.orders_tree.column(col, width=100, anchor="center")
+        
+        # Configure columns with global styling
+        configure_columns_with_priority_styling(self.orders_tree, columns)
         scrollbar = ttk.Scrollbar(table_frame, orient=VERTICAL, command=self.orders_tree.yview)
         self.orders_tree.configure(yscrollcommand=scrollbar.set)
         self.orders_tree.pack(side=LEFT, fill=BOTH, expand=True)
         scrollbar.pack(side=RIGHT, fill=Y)
         
         # Apply custom styling to headers
-        self.style_headers()
+        apply_treeview_styling(self.orders_tree)
         
         self.orders_tree.bind('<<TreeviewSelect>>', self.handle_order_select)
         details_frame = ttk.LabelFrame(self, text="Order Details", padding=10)
@@ -65,38 +68,7 @@ class OrdersView(ttk.Frame):
         self.details_text = tk.Text(details_frame, height=8, wrap=tk.WORD)
         self.details_text.pack(fill=X)
 
-    def style_headers(self):
-        """Apply custom styling to table headers."""
-        try:
-            # Get the current style
-            style = ttk.Style()
-            
-            # Create a custom style for treeview headers
-            style.configure(
-                "Custom.Treeview.Heading",
-                background="#2c3e50",  # Dark blue-gray
-                foreground="white",
-                font=("Helvetica", 9, "bold"),
-                relief="flat",
-                borderwidth=1
-            )
-            
-            # Apply the custom style to the treeview
-            self.orders_tree.configure(style="Custom.Treeview")
-            
-            # Also style the treeview itself for better contrast
-            style.configure(
-                "Custom.Treeview",
-                background="white",
-                foreground="black",
-                fieldbackground="white",
-                borderwidth=1,
-                relief="solid"
-            )
-            
-        except Exception as e:
-            # Use a simple print since logger might not be available
-            print(f"Failed to apply custom header styling: {e}")
+
 
     def refresh(self):
         for item in self.orders_tree.get_children():
@@ -107,6 +79,9 @@ class OrdersView(ttk.Frame):
         for i, order in enumerate(pending_orders):
             contacted_status = "Yes" if order.contacted else "No"
             confirmed_status = "Yes" if order.confirmed else "No"
+            
+            # Insert with alternating row colors
+            tags = get_alternating_row_tags(i)
             item_id = self.orders_tree.insert('', END, values=(
                 order.participant_full_name,
                 order.jersey_name,
@@ -115,8 +90,11 @@ class OrdersView(ttk.Frame):
                 order.jersey_type,
                 contacted_status,
                 confirmed_status
-            ))
+            ), tags=tags)
             self.order_item_map[item_id] = order
+        
+        # Apply alternating row colors
+        apply_alternating_row_colors(self.orders_tree)
 
     def handle_order_select(self, event):
         selection = self.orders_tree.selection()

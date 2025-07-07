@@ -59,7 +59,7 @@ usa_hockey:
       name: "NICE ICE HOCKEY ASSOCIATION"
     page_load_timeout: 30000
     take_screenshots: false
-    skip_navigation_wait: false  # Set to true to skip navigation wait entirely
+    skip_navigation_wait: true  # Set to true to skip navigation wait entirely
   
   # Season settings
   season:
