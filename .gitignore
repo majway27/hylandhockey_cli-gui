@@ -9,6 +9,8 @@ hockey-freeze.txt
 
 downloads/
 
+logs/
+
 # Screenshots and debug files
 *.png
 *.jpg
