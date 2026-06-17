@@ -95,6 +95,19 @@ rate_limiting:
         # Test non-retryable error
         mock_error.resp.status = 400
         self.assertFalse(limiter.should_retry(mock_error))
+
+    def test_should_retry_gspread_api_error(self):
+        """Test that gspread APIError 429 responses trigger retry."""
+        config = {'retry_status_codes': [429, 500, 502, 503, 504]}
+        limiter = RateLimiter(config)
+
+        mock_error = Mock()
+        mock_error.code = 429
+
+        self.assertTrue(limiter.should_retry(mock_error))
+
+        mock_error.code = 400
+        self.assertFalse(limiter.should_retry(mock_error))
     
     def test_get_retry_delay_exponential_backoff(self):
         """Test exponential backoff delay calculation."""

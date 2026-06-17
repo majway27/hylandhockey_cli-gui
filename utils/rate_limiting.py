@@ -49,6 +49,25 @@ class RateLimiter:
         # Track API call timing for rate limiting
         self.last_api_call = 0.0
         
+    def _error_status_code(self, error: Exception) -> Optional[int]:
+        """Extract an HTTP status code from common Google/gspread exception types."""
+        if isinstance(error, HttpError) and hasattr(error, 'resp'):
+            return error.resp.status
+        for attr in ('code', 'status_code'):
+            if hasattr(error, attr):
+                value = getattr(error, attr)
+                if isinstance(value, int):
+                    return value
+        if hasattr(error, 'response') and hasattr(error.response, 'status_code'):
+            status_code = error.response.status_code
+            if isinstance(status_code, int):
+                return status_code
+        if hasattr(error, 'resp') and hasattr(error.resp, 'status'):
+            status = error.resp.status
+            if isinstance(status, int):
+                return status
+        return None
+
     def should_retry(self, error: Exception) -> bool:
         """
         Determine if an error should trigger a retry.
@@ -60,14 +79,11 @@ class RateLimiter:
             bool: True if the error should trigger a retry
         """
         try:
-            if isinstance(error, HttpError):
-                return error.resp.status in self.retry_status_codes
-            elif isinstance(error, requests.exceptions.RequestException):
+            if isinstance(error, requests.exceptions.RequestException):
                 return True
-            elif hasattr(error, 'status_code'):
-                return error.status_code in self.retry_status_codes
-            elif hasattr(error, 'resp') and hasattr(error.resp, 'status'):
-                return error.resp.status in self.retry_status_codes
+            status_code = self._error_status_code(error)
+            if status_code is not None:
+                return status_code in self.retry_status_codes
             return False
         except Exception:
             # If we can't determine the error type, don't retry
@@ -152,7 +168,7 @@ class RateLimiter:
                     break
         
         # All retries exhausted
-        if isinstance(last_exception, HttpError) and hasattr(last_exception, 'resp') and last_exception.resp.status == 429:
+        if self._error_status_code(last_exception) == 429:
             raise RateLimitExceededError(f"Rate limit exceeded after {self.max_retries + 1} attempts") from last_exception
         else:
             raise last_exception
@@ -203,6 +219,18 @@ def batch_delay(config: Dict[str, Any]):
     return decorator
 
 
+def _default_rate_limiting_config() -> Dict[str, Any]:
+    return {
+        'max_retries': 3,
+        'base_delay': 1.0,
+        'max_delay': 60.0,
+        'batch_delay': 0.5,
+        'api_call_delay': 0.1,
+        'use_exponential_backoff': True,
+        'retry_status_codes': [429, 500, 502, 503, 504]
+    }
+
+
 def get_rate_limiting_config(config_manager) -> Dict[str, Any]:
     """
     Get rate limiting configuration from config manager.
@@ -214,17 +242,8 @@ def get_rate_limiting_config(config_manager) -> Dict[str, Any]:
         Dict containing rate limiting configuration
     """
     try:
-        # Load config and get rate limiting settings
-        config = config_manager.load_config()
-        return config.get('rate_limiting', {})
+        config = config_manager.rate_limiting
+        return config if config else _default_rate_limiting_config()
     except Exception as e:
         logger.warning(f"Failed to load rate limiting config, using defaults: {e}")
-        return {
-            'max_retries': 3,
-            'base_delay': 1.0,
-            'max_delay': 60.0,
-            'batch_delay': 0.5,
-            'api_call_delay': 0.1,
-            'use_exponential_backoff': True,
-            'retry_status_codes': [429, 500, 502, 503, 504]
-        } 
+        return _default_rate_limiting_config() 

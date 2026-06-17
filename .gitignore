@@ -4,6 +4,8 @@ config/token*
 config/preferences.yaml
 config/email_signature.html
 tests/token*
+.python-version
+hockey-freeze.txt
 
 downloads/
 
